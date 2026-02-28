@@ -2,29 +2,33 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mobile Peg Solitaire</title>
+    <title>Numbered Peg Solitaire</title>
     <style>
         body { 
-            font-family: sans-serif; display: flex; flex-direction: column; align-items: center; 
-            background: #f4f7f6; color: #2c3e50; margin: 0; padding: 10px;
-            touch-action: manipulation; /* Prevents double-tap zoom delay */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex; flex-direction: column; align-items: center; 
+            background: #f0f2f5; color: #1c1e21; margin: 0; padding: 10px;
+            touch-action: manipulation;
         }
         canvas { 
-            background: #fff; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
-            max-width: 100%; height: auto; touch-action: none; /* Crucial for custom dragging */
+            background: #ffffff; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); 
+            max-width: 100%; height: auto; touch-action: none;
         }
-        .controls { margin: 15px 0; text-align: center; }
-        .btn-group { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+        .controls { margin: 15px 0; text-align: center; width: 100%; }
+        .btn-group { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
         button { 
-            padding: 12px 18px; font-size: 14px; font-weight: 600; cursor: pointer; 
-            background: #3498db; color: white; border: none; border-radius: 8px;
+            padding: 10px 16px; font-size: 14px; font-weight: 700; cursor: pointer; 
+            background: #007bff; color: white; border: none; border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,123,255,0.2);
         }
-        #status { font-weight: bold; margin-bottom: 10px; color: #e67e22; min-height: 20px; }
+        button:active { transform: scale(0.95); }
+        #status { font-weight: 600; margin-bottom: 15px; color: #d94111; min-height: 24px; font-size: 1.1rem; }
+        h1 { margin-bottom: 5px; font-size: 1.5rem; }
     </style>
 </head>
 <body>
-    <h1>Peg Solitaire</h1>
-    <div id="status">Select a hole to start</div>
+    <h1>Triangular Solitaire</h1>
+    <div id="status">Select a starting hole</div>
     
     <div class="controls">
         <div class="btn-group">
@@ -35,7 +39,7 @@
         </div>
     </div>
 
-    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <canvas id="gameCanvas" width="400" height="420"></canvas>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -54,10 +58,10 @@
         };
 
         const points = [];
-        const sx = 65, sy = 65;
+        const sx = 65, sy = 70; // Increased Y spacing for labels
         for (let r = 0; r < 5; r++) {
             for (let c = 0; c <= r; c++) {
-                points.push({ x: 200 - (r * sx / 2) + (c * sx), y: 60 + (r * sy) });
+                points.push({ x: 200 - (r * sx / 2) + (c * sx), y: 50 + (r * sy) });
             }
         }
 
@@ -76,15 +80,18 @@
             const r = canvas.getBoundingClientRect();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            return { x: clientX - r.left, y: clientY - r.top };
+            return { x: (clientX - r.left) * (canvas.width / r.width), 
+                     y: (clientY - r.top) * (canvas.height / r.height) };
         }
 
         function handleStart(e) {
             const pos = getPos(e);
+            mousePos = pos;
             points.forEach((p, i) => {
                 if (Math.hypot(p.x - pos.x, p.y - pos.y) < radius + 10 && pegs[i]) draggingIdx = i;
             });
             if(e.touches) e.preventDefault();
+            draw();
         }
 
         function handleMove(e) {
@@ -117,10 +124,9 @@
                     if(MOVES[i].some(m => pegs[m[0]] && !pegs[m[1]])) canMove = true;
                 }
             }
-            if(!canMove) statusMsg.innerText = count === 1 ? "🏆 Perfect!" : `Game Over: ${count} left`;
+            if(!canMove) statusMsg.innerText = count === 1 ? "🏆 Perfect Score!" : `Finished: ${count} left`;
         }
 
-        // Event Listeners for both Mouse and Touch
         canvas.addEventListener('mousedown', handleStart);
         window.addEventListener('mousemove', handleMove);
         window.addEventListener('mouseup', handleEnd);
@@ -130,19 +136,33 @@
         window.addEventListener('touchend', handleEnd);
 
         function draw() {
-            ctx.clearRect(0, 0, 400, 400);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             points.forEach((p, i) => {
+                // Draw Hole
                 ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, 7);
-                ctx.fillStyle = '#ecf0f1'; ctx.fill();
-                ctx.strokeStyle = '#bdc3c7'; ctx.stroke();
-                if (pegs[i] && i !== draggingIdx) drawPeg(p.x, p.y, '#2c3e50');
+                ctx.fillStyle = '#e9ecef'; ctx.fill();
+                ctx.strokeStyle = '#dee2e6'; ctx.lineWidth = 2; ctx.stroke();
+
+                // Draw Number Reference
+                ctx.fillStyle = "#6c757d";
+                ctx.font = "bold 12px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText(i, p.x, p.y + radius + 15);
+
+                // Draw Peg
+                if (pegs[i] && i !== draggingIdx) drawPeg(p.x, p.y, '#343a40');
             });
-            if (draggingIdx !== null) drawPeg(mousePos.x, mousePos.y, '#3498db');
+
+            // Draw Dragging Peg
+            if (draggingIdx !== null) drawPeg(mousePos.x, mousePos.y, '#007bff');
         }
 
         function drawPeg(x, y, color) {
             ctx.beginPath(); ctx.arc(x, y, radius - 4, 0, 7);
             ctx.fillStyle = color; ctx.fill();
+            // Optional shine effect
+            ctx.beginPath(); ctx.arc(x - 4, y - 4, 3, 0, 7);
+            ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fill();
         }
 
         resetGame(0);
