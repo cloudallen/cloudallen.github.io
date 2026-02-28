@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Triangular Solitaire - Selected Starts</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; background: #f4f7f6; color: #2c3e50; }
+        canvas { background: #fff; border-radius: 15px; box-shadow: 0 12px 30px rgba(0,0,0,0.15); cursor: grab; margin-top: 10px; }
+        canvas:active { cursor: grabbing; }
+        .controls { margin: 20px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        .btn-group { display: flex; gap: 10px; }
+        button { padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; background: #3498db; color: white; border: none; border-radius: 6px; transition: 0.3s; }
+        button:hover { background: #2980b9; transform: scale(1.05); }
+        #status { font-weight: bold; font-size: 1.2rem; color: #e67e22; height: 30px; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Peg Solitaire</h1>
+    <div id="status"></div>
+    
+    <div class="controls">
+        <span>Select Starting Empty Hole:</span>
+        <div class="btn-group">
+            <button onclick="resetGame(0)">Hole 0</button>
+            <button onclick="resetGame(1)">Hole 1</button>
+            <button onclick="resetGame(3)">Hole 3</button>
+            <button onclick="resetGame(4)">Hole 4</button>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas" width="500" height="460"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const statusMsg = document.getElementById('status');
+        const radius = 24;
+        
+        const MOVES = {
+            0: [[1, 3], [2, 5]], 1: [[3, 6], [4, 8]], 2: [[4, 7], [5, 9]],
+            3: [[1, 0], [4, 5], [6, 10], [7, 12]], 4: [[7, 11], [8, 13]],
+            5: [[2, 0], [4, 3], [8, 12], [9, 14]], 6: [[3, 1], [7, 8]],
+            7: [[4, 2], [8, 9]], 8: [[4, 1], [7, 6]], 9: [[5, 2], [8, 7]],
+            10: [[6, 3], [11, 12]], 11: [[7, 4], [12, 13]],
+            12: [[7, 3], [8, 5], [11, 10], [13, 14]], 13: [[8, 4], [12, 11]],
+            14: [[9, 5], [13, 12]]
+        };
+
+        const points = [];
+        const sx = 80, sy = 80;
+        for (let r = 0; r < 5; r++) {
+            for (let c = 0; c <= r; c++) {
+                points.push({ x: 250 - (r * sx / 2) + (c * sx), y: 70 + (r * sy) });
+            }
+        }
+
+        let pegs = [];
+        let draggingIdx = null;
+        let mousePos = { x: 0, y: 0 };
+
+        function resetGame(idx) {
+            pegs = new Array(15).fill(true);
+            pegs[idx] = false;
+            statusMsg.innerText = "Game Started";
+            draw();
+        }
+
+        function checkMoves() {
+            let count = 0, movesLeft = 0;
+            for(let i=0; i<15; i++) {
+                if(pegs[i]) {
+                    count++;
+                    if(MOVES[i].some(m => pegs[m[0]] && !pegs[m[1]])) movesLeft++;
+                }
+            }
+            if(movesLeft === 0) {
+                statusMsg.innerText = count === 1 ? "🏆 Perfect Score!" : `Stuck with ${count} pegs.`;
+            }
+        }
+
+        canvas.onmousedown = e => {
+            const r = canvas.getBoundingClientRect();
+            const x = e.clientX - r.left, y = e.clientY - r.top;
+            points.forEach((p, i) => {
+                if (Math.hypot(p.x - x, p.y - y) < radius && pegs[i]) draggingIdx = i;
+            });
+        };
+
+        window.onmousemove = e => {
+            if (draggingIdx === null) return;
+            const r = canvas.getBoundingClientRect();
+            mousePos = { x: e.clientX - r.left, y: e.clientY - r.top };
+            draw();
+        };
+
+        window.onmouseup = e => {
+            if (draggingIdx === null) return;
+            const r = canvas.getBoundingClientRect();
+            const x = e.clientX - r.left, y = e.clientY - r.top;
+            points.forEach((p, target) => {
+                if (Math.hypot(p.x - x, p.y - y) < radius && !pegs[target]) {
+                    const jump = MOVES[draggingIdx].find(m => m[1] === target);
+                    if (jump && pegs[jump[0]]) {
+                        pegs[draggingIdx] = false; pegs[jump[0]] = false; pegs[target] = true;
+                        checkMoves();
+                    }
+                }
+            });
+            draggingIdx = null;
+            draw();
+        };
+
+        function draw() {
+            ctx.clearRect(0, 0, 500, 460);
+            points.forEach((p, i) => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, radius, 0, 7);
+                ctx.fillStyle = '#ecf0f1'; ctx.fill();
+                ctx.strokeStyle = '#bdc3c7'; ctx.stroke();
+                ctx.fillStyle = "#95a5a6"; ctx.font = "12px Arial";
+                ctx.fillText(i, p.x - 4, p.y + 40);
+                if (pegs[i] && i !== draggingIdx) drawPeg(p.x, p.y, '#2c3e50');
+            });
+            if (draggingIdx !== null) drawPeg(mousePos.x, mousePos.y, '#3498db');
+        }
+
+        function drawPeg(x, y, color) {
+            ctx.beginPath(); ctx.arc(x, y, radius - 5, 0, 7);
+            ctx.fillStyle = color; ctx.fill();
+        }
+
+        resetGame(0);
+    </script>
+</body>
+</html>
