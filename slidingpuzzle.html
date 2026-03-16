@@ -1,155 +1,161 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sliding Car Puzzle</title>
-<style>
-    body {
-        display: flex;
-        justify-content: center;
-        background-color: #2c3e50;
-        font-family: sans-serif;
-        color: white;
-        margin-top: 50px;
-    }
-    #app-container {
-        display: flex;
-        gap: 40px;
-    }
-    #sidebar {
-        display: flex;
-        flex-direction: column;
-        width: 170px; /* Widened slightly to fit longer names */
-        background-color: #34495e;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-    }
-    #sidebar h3 {
-        margin-top: 0;
-        text-align: center;
-        border-bottom: 2px solid #bdc3c7;
-        padding-bottom: 10px;
-    }
-    #level-buttons {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-    .level-btn {
-        padding: 10px;
-        background-color: #2980b9;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        font-size: 15px;
-        cursor: pointer;
-        transition: background-color 0.2s;
-    }
-    .level-btn:hover { background-color: #3498db; }
-    .level-btn.active { background-color: #e74c3c; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rush Hour - Mobile Ready</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+            min-height: 100vh;
+        }
 
-    .action-btn {
-        margin-top: 15px;
-        padding: 10px;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        font-size: 16px;
-        font-weight: bold;
-        cursor: pointer;
-    }
-    .reset-btn { background-color: #7f8c8d; }
-    .reset-btn:hover { background-color: #95a5a6; }
-    .solve-btn { background-color: #27ae60; }
-    .solve-btn:hover { background-color: #2ecc71; }
-    .solve-btn:disabled { background-color: #145a32; cursor: not-allowed; }
+        h1 { margin-bottom: 5px; }
+        
+        #level-title {
+            font-size: 1.2rem;
+            color: #3498db;
+            margin-bottom: 10px;
+        }
 
-    #game-main {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-    #game-container {
-        position: relative;
-        width: 360px;
-        height: 360px;
-        background-color: #34495e;
-        border: 10px solid #bdc3c7;
-        border-right: 10px solid #bdc3c7;
-        border-radius: 5px;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.5);
-    }
-    #exit {
-        position: absolute;
-        top: 120px;
-        right: -20px;
-        width: 20px;
-        height: 60px;
-        background-color: #34495e;
-    }
-    .grid-cell {
-        position: absolute;
-        width: 58px;
-        height: 58px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-sizing: border-box;
-    }
-    .vehicle {
-        position: absolute;
-        border-radius: 8px;
-        cursor: grab;
-        box-shadow: inset 0 0 10px rgba(0,0,0,0.2), 2px 2px 5px rgba(0,0,0,0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        user-select: none;
-        transition: left 0.2s ease, top 0.2s ease, transform 0.1s; 
-    }
-    .vehicle:active {
-        cursor: grabbing;
-        transform: scale(0.98);
-    }
-    .target-car { border: 2px solid #fff; z-index: 10; }
-    #message {
-        margin-top: 20px;
-        font-size: 24px;
-        font-weight: bold;
-        color: #f1c40f;
-        height: 30px;
-    }
-    /* Title above the board that updates with the level */
-    #level-title {
-        margin-top: -10px;
-        margin-bottom: 20px;
-        font-size: 18px;
-        color: #bdc3c7;
-    }
-</style>
+        #message {
+            height: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        /* The Game Board */
+        #game-container {
+            position: relative;
+            width: 360px; /* 6 cols * 60px */
+            height: 360px; /* 6 rows * 60px */
+            background-color: #ecf0f1;
+            border: 4px solid #34495e;
+            border-radius: 8px;
+            overflow: hidden;
+            /* CRITICAL FOR MOBILE: Prevents page scrolling when dragging */
+            touch-action: none; 
+            margin-bottom: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+
+        /* The exit marker */
+        #game-container::after {
+            content: 'EXIT';
+            position: absolute;
+            right: 0;
+            top: 120px; /* 2nd row (y=2) * 60px */
+            height: 60px;
+            width: 40px;
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.8rem;
+            writing-mode: vertical-rl;
+            border-left: 2px dashed #e74c3c;
+            pointer-events: none;
+        }
+
+        .grid-cell {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border: 1px solid rgba(189, 195, 199, 0.3);
+            box-sizing: border-box;
+            pointer-events: none; /* Let clicks pass through to the cars */
+        }
+
+        .vehicle {
+            position: absolute;
+            border-radius: 6px;
+            box-shadow: inset 0 0 0 2px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.2);
+            cursor: grab;
+            transition: left 0.1s linear, top 0.1s linear; /* Smooth snapping */
+            touch-action: none; /* Ensures the car itself catches the touch */
+            z-index: 10;
+        }
+        
+        .vehicle:active {
+            cursor: grabbing;
+            z-index: 20;
+        }
+
+        .target-car {
+            border: 2px solid #c0392b;
+            box-shadow: inset 0 0 0 2px rgba(255,255,255,0.2), 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        /* UI Controls */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        #level-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button {
+            background-color: #34495e;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 0.9rem;
+        }
+
+        button:hover { background-color: #2980b9; }
+        button.active { background-color: #3498db; font-weight: bold; }
+        
+        #solve-button {
+            background-color: #e67e22;
+            padding: 10px 20px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 6px;
+        }
+        #solve-button:hover { background-color: #d35400; }
+        #solve-button:disabled { background-color: #7f8c8d; cursor: not-allowed; }
+
+    </style>
 </head>
 <body>
 
-    <div id="app-container">
-        <div id="sidebar">
-            <h3>Puzzles</h3>
-            <div id="level-buttons"></div>
-            <button class="action-btn reset-btn" onclick="loadLevel(currentLevelIndex)">Restart Level</button>
-            <button id="solve-button" class="action-btn solve-btn" onclick="triggerSolve()">Solve Me</button>
-        </div>
+    <h1>Rush Hour</h1>
+    <div id="level-title"></div>
+    <div id="message"></div>
 
-        <div id="game-main">
-            <h2>Escape the Lot!</h2>
-            <div id="level-title"></div>
-            <div id="game-container">
-                <div id="exit"></div>
-            </div>
-            <div id="message"></div>
-        </div>
+    <div id="game-container"></div>
+
+    <div class="controls">
+        <button id="solve-button" onclick="triggerSolve()">Auto-Solve</button>
+        <div id="level-buttons"></div>
     </div>
 
 <script>
-const CELL_SIZE = 60;
+    // --- YOUR EXACT JAVASCRIPT CODE BELOW ---
+
+    const CELL_SIZE = 60;
     const GRID_SIZE = 6;
     const container = document.getElementById('game-container');
     const messageEl = document.getElementById('message');
@@ -178,7 +184,7 @@ const CELL_SIZE = 60;
             ]
         },
         {
-            name: "2. Stupid 1",
+            name: "2. The Blockade",
             vehicles: [
                 { id: 'target', x: 0, y: 2, len: 2, dir: 'h', color: '#e74c3c', isTarget: true },
                 { id: 'v1', x: 2, y: 1, len: 3, dir: 'v', color: '#3498db' },
@@ -194,7 +200,7 @@ const CELL_SIZE = 60;
             ]
         },
         {
-            name: "3. Stupid 2",
+            name: "3. Gridlock",
             vehicles: [
                 { id: 'target', x: 0, y: 2, len: 2, dir: 'h', color: '#e74c3c', isTarget: true },
                 { id: 'v1', x: 2, y: 0, len: 3, dir: 'v', color: '#3498db' },
@@ -210,7 +216,7 @@ const CELL_SIZE = 60;
             ]
         },
         {
-            name: "4. Stupid 3",
+            name: "4. Backup Plan",
             vehicles: [
                 { id: 'target', x: 2, y: 2, len: 2, dir: 'h', color: '#e74c3c', isTarget: true },
                 { id: 'v1', x: 4, y: 1, len: 3, dir: 'v', color: '#3498db' },
@@ -227,7 +233,7 @@ const CELL_SIZE = 60;
             ]
         },
         {
-            name: "5. Stupid 4",
+            name: "5. Traffic Jam",
             vehicles: [
                 { id: 'target', x: 0, y: 2, len: 2, dir: 'h', color: '#e74c3c', isTarget: true },
                 { id: 'v1', x: 2, y: 0, len: 3, dir: 'v', color: '#3498db' },
@@ -499,7 +505,6 @@ const CELL_SIZE = 60;
 
     setupButtons();
     loadLevel(0);
-</script>
 </script>
 </body>
 </html>
