@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Solitaire Engine</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background: #f0f2f5; margin: 0; padding: 10px; touch-action: manipulation; }
+        canvas { background: #fff; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); max-width: 100%; height: auto; touch-action: none; }
+        .controls { margin: 10px 0; text-align: center; display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 400px; }
+        .btn-group { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+        .action-group { display: flex; gap: 10px; justify-content: center; margin-top: 5px; }
+        button { padding: 10px 12px; font-size: 13px; font-weight: bold; cursor: pointer; border: none; border-radius: 8px; color: white; transition: 0.2s; }
+        .btn-start { background: #6c757d; }
+        .btn-solve { background: #28a745; flex: 1; }
+        .btn-anti { background: #dc3545; flex: 1; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        #status { font-weight: bold; margin-bottom: 10px; color: #333; min-height: 24px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div id="status">Select a hole to start</div>
+    
+    <div class="controls">
+        <div class="btn-group">
+            <button class="btn-start" onclick="resetGame(0)">Hole 0</button>
+            <button class="btn-start" onclick="resetGame(1)">Hole 1</button>
+            <button class="btn-start" onclick="resetGame(3)">Hole 3</button>
+            <button class="btn-start" onclick="resetGame(4)">Hole 4</button>
+        </div>
+        <div class="action-group">
+            <button id="solveBtn" class="btn-solve" onclick="runSolver(true)">Solve Me</button>
+            <button id="antiBtn" class="btn-anti" onclick="runSolver(false)">Anti-Solve</button>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas" width="400" height="420"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const statusMsg = document.getElementById('status');
+        const radius = 20;
+        let animating = false;
+
+        const MOVES = {
+            0: [[1, 3], [2, 5]], 1: [[3, 6], [4, 8]], 2: [[4, 7], [5, 9]],
+            3: [[1, 0], [4, 5], [6, 10], [7, 12]], 4: [[7, 11], [8, 13]],
+            5: [[2, 0], [4, 3], [8, 12], [9, 14]], 6: [[3, 1], [7, 8]],
+            7: [[4, 2], [8, 9]], 8: [[4, 1], [7, 6]], 9: [[5, 2], [8, 7]],
+            10: [[6, 3], [11, 12]], 11: [[7, 4], [12, 13]],
+            12: [[7, 3], [8, 5], [11, 10], [13, 14]], 13: [[8, 4], [12, 11]],
+            14: [[9, 5], [13, 12]]
+        };
+
+        const points = [];
+        const sx = 65, sy = 70;
+        for (let r = 0; r < 5; r++) {
+            for (let c = 0; c <= r; c++) {
+                points.push({ x: 200 - (r * sx / 2) + (c * sx), y: 50 + (r * sy) });
+            }
+        }
+
+        let pegs = [];
+        let draggingIdx = null;
+        let mousePos = { x: 0, y: 0 };
+
+        function resetGame(idx) {
+            if(animating) return;
+            pegs = new Array(15).fill(true);
+            pegs[idx] = false;
+            statusMsg.innerText = "Current Pegs: 14";
+            draw();
+        }
+
+        // --- SOLVER ENGINE ---
+        function getLegalMoves(state) {
+            let legals = [];
+            for (let s = 0; s < 15; s++) {
+                if (!state[s]) continue;
+                MOVES[s].forEach(([m, e]) => {
+                    if (state[m] && !state[e]) legals.push({s, m, e});
+                });
+            }
+            return legals;
+        }
+
+        function solve(state, findBest) {
+            const moves = getLegalMoves(state);
+            if (moves.length === 0) return { count: state.filter(p => p).length, path: [] };
+
+            let target = findBest ? 1 : 15; // Aim for 1 (Solve) or Max (Anti)
+            let result = null;
+
+            for (let move of moves) {
+                let newState = [...state];
+                newState[move.s] = false; newState[move.m] = false; newState[move.e] = true;
+                let outcome = solve(newState, findBest);
+                
+                if (!result || (findBest && outcome.count < result.count) || (!findBest && outcome.count > result.count)) {
+                    result = { count: outcome.count, path: [move, ...outcome.path] };
+                    if (findBest && result.count === 1) break; // Optimization: Stop if solved
+                }
+            }
+            return result;
+        }
+
+        async function runSolver(findBest) {
+            if (animating) return;
+            animating = true;
+            statusMsg.innerText = "Calculating...";
+            
+            const result = solve([...pegs], findBest);
+            if (!result || result.path.length === 0) {
+                statusMsg.innerText = "No moves possible!";
+                animating = false;
+                return;
+            }
+
+            for (let move of result.path) {
+                pegs[move.s] = false; pegs[move.m] = false; pegs[move.e] = true;
+                draw();
+                statusMsg.innerText = findBest ? `Solving... ${pegs.filter(p=>p).length} left` : `Stalling... ${pegs.filter(p=>p).length} left`;
+                await new Promise(r => setTimeout(r, 600));
+            }
+            
+            statusMsg.innerText = findBest && pegs.filter(p=>p).length === 1 ? "🏆 Solved!" : `Done! ${pegs.filter(p=>p).length} pegs left.`;
+            animating = false;
+        }
+
+        // --- INPUTS & DRAWING ---
+        function getPos(e) {
+            const r = canvas.getBoundingClientRect();
+            const cx = e.touches ? e.touches[0].clientX : e.clientX;
+            const cy = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: (cx - r.left) * (400 / r.width), y: (cy - r.top) * (420 / r.height) };
+        }
+
+        canvas.addEventListener('mousedown', e => { if(!animating) { draggingIdx = null; const p = getPos(e); points.forEach((pt, i) => { if(Math.hypot(pt.x-p.x, pt.y-p.y) < radius && pegs[i]) draggingIdx = i; }); mousePos = p; draw(); } });
+        window.addEventListener('mousemove', e => { if(draggingIdx !== null) { mousePos = getPos(e); draw(); } });
+        window.addEventListener('mouseup', e => {
+            if(draggingIdx === null) return;
+            points.forEach((pt, target) => {
+                if(Math.hypot(pt.x-mousePos.x, pt.y-mousePos.y) < radius && !pegs[target]) {
+                    const jump = MOVES[draggingIdx].find(m => m[1] === target);
+                    if(jump && pegs[jump[0]]) { pegs[draggingIdx]=false; pegs[jump[0]]=false; pegs[target]=true; }
+                }
+            });
+            draggingIdx = null; draw();
+        });
+
+        canvas.addEventListener('touchstart', e => { e.preventDefault(); canvas.dispatchEvent(new MouseEvent('mousedown', {clientX: e.touches[0].clientX, clientY: e.touches[0].clientY})); }, {passive:false});
+        window.addEventListener('touchmove', e => { e.preventDefault(); window.dispatchEvent(new MouseEvent('mousemove', {clientX: e.touches[0].clientX, clientY: e.touches[0].clientY})); }, {passive:false});
+        window.addEventListener('touchend', () => window.dispatchEvent(new MouseEvent('mouseup')));
+
+        function draw() {
+            ctx.clearRect(0, 0, 400, 420);
+            points.forEach((p, i) => {
+                ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, 7);
+                ctx.fillStyle = '#e9ecef'; ctx.fill();
+                ctx.strokeStyle = '#dee2e6'; ctx.stroke();
+                ctx.fillStyle = "#6c757d"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = "center";
+                ctx.fillText(i, p.x, p.y + radius + 15);
+                if (pegs[i] && i !== draggingIdx) drawPeg(p.x, p.y, '#343a40');
+            });
+            if (draggingIdx !== null) drawPeg(mousePos.x, mousePos.y, '#007bff');
+        }
+
+        function drawPeg(x, y, color) {
+            ctx.beginPath(); ctx.arc(x, y, radius - 4, 0, 7);
+            ctx.fillStyle = color; ctx.fill();
+        }
+
+        resetGame(0);
+    </script>
+</body>
+</html>
