@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noite de Jogos · IMPA</title>
+    <meta name="description" content="Noite de Jogos no IMPA, toda quinta-feira das 18:30 às 21:00. Game Night at IMPA, every Thursday from 6:30 to 9 PM.">
+    <style>
+        :root {
+            --felt: #12493a;
+            --felt-dark: #0a2a20;
+            --ink: #07170f;
+            --panel: rgba(255, 255, 255, 0.06);
+            --panel-border: rgba(255, 255, 255, 0.12);
+            --text: #eef4ef;
+            --muted: #a9c2b6;
+            --gold: #f5b942;
+            --gold-dark: #d99a1e;
+            --red: #e05d5d;
+            --teal: #2bb3a3;
+            --purple: #8e6cdf;
+            --blue: #4f8fe6;
+            --orange: #f08a3c;
+            --radius: 16px;
+        }
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 1px 1px, rgba(255,255,255,0.035) 1px, transparent 0) 0 0 / 6px 6px,
+                radial-gradient(ellipse at top, #18604a 0%, var(--felt) 35%, var(--felt-dark) 75%, #061a13 100%) fixed;
+            background-color: var(--felt-dark);
+            min-height: 100vh;
+        }
+        body:has(dialog[open]) { overflow: hidden; }
+        a { color: var(--gold); }
+        svg.icon { width: 1em; height: 1em; vertical-align: -0.15em; }
+
+        /* ---------- Top bar ---------- */
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 10px 24px;
+            background: rgba(6, 26, 19, 0.82);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--panel-border);
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            color: var(--text);
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .brand svg { width: 26px; height: 26px; color: var(--gold); }
+        .nav-links {
+            display: flex;
+            gap: 4px;
+            margin-left: auto;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .nav-links::-webkit-scrollbar { display: none; }
+        .nav-links a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 6px 12px;
+            border-radius: 999px;
+            white-space: nowrap;
+            transition: background 0.2s, color 0.2s;
+        }
+        .nav-links a:hover { color: var(--text); background: var(--panel); }
+        .lang-toggle {
+            display: flex;
+            border: 1px solid var(--panel-border);
+            border-radius: 999px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .lang-toggle button {
+            background: transparent;
+            color: var(--muted);
+            border: 0;
+            padding: 6px 12px;
+            font: inherit;
+            font-weight: 600;
+            font-size: 0.85em;
+            cursor: pointer;
+        }
+        .lang-toggle button[aria-pressed="true"] { background: var(--gold); color: var(--ink); }
+
+        /* ---------- Hero ---------- */
+        .hero {
+            position: relative;
+            overflow: hidden;
+            text-align: center;
+            padding: 80px 24px 72px;
+        }
+        .hero-inner { position: relative; z-index: 1; max-width: 760px; margin: 0 auto; }
+        .eyebrow {
+            display: inline-block;
+            margin: 0 0 12px;
+            padding: 4px 14px;
+            border-radius: 999px;
+            background: rgba(245, 185, 66, 0.14);
+            color: var(--gold);
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-size: 0.8em;
+        }
+        .hero h1 {
+            margin: 0;
+            font-size: clamp(2.6em, 9vw, 4.6em);
+            line-height: 1.05;
+            letter-spacing: -0.02em;
+            background: linear-gradient(120deg, #fff 10%, var(--gold) 55%, var(--orange) 95%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .hero-sub { font-size: clamp(1.15em, 3.6vw, 1.5em); font-weight: 600; margin: 14px 0 6px; }
+        .hero-tag { color: var(--muted); margin: 0 auto; max-width: 520px; }
+
+        .floaty {
+            position: absolute;
+            opacity: 0.22;
+            animation: float 9s ease-in-out infinite;
+        }
+        .floaty.f1 { width: 90px; top: 12%; left: 7%; color: var(--gold); --rot: -14deg; }
+        .floaty.f2 { width: 64px; top: 62%; left: 13%; color: var(--red); --rot: 18deg; animation-delay: -3s; }
+        .floaty.f3 { width: 80px; top: 16%; right: 9%; color: var(--teal); --rot: 10deg; animation-delay: -5s; }
+        .floaty.f4 { width: 58px; top: 66%; right: 14%; color: var(--purple); --rot: -20deg; animation-delay: -1.5s; }
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(var(--rot)); }
+            50% { transform: translateY(-18px) rotate(calc(var(--rot) + 8deg)); }
+        }
+
+        .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 28px; }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 22px;
+            border-radius: 999px;
+            font: inherit;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: transform 0.15s, background 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover { transform: translateY(-2px); }
+        .btn.primary {
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            color: var(--ink);
+            box-shadow: 0 8px 20px rgba(245, 185, 66, 0.3);
+        }
+        .btn.ghost { background: var(--panel); color: var(--text); border-color: var(--panel-border); }
+        .btn.ghost:hover { background: rgba(255,255,255,0.12); }
+        .btn[aria-disabled="true"] { opacity: 0.55; pointer-events: none; }
+
+        /* ---------- Sections ---------- */
+        main section { max-width: 1100px; margin: 0 auto; padding: 56px 24px; }
+        .section-head { text-align: center; margin-bottom: 32px; }
+        .section-head h2 { margin: 0; font-size: clamp(1.7em, 5vw, 2.3em); }
+        .section-head h2::after {
+            content: '';
+            display: block;
+            width: 64px;
+            height: 4px;
+            margin: 10px auto 0;
+            border-radius: 2px;
+            background: linear-gradient(90deg, var(--gold), var(--orange));
+        }
+        .section-head p { color: var(--muted); margin: 12px 0 0; }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius);
+        }
+
+        /* Info cards */
+        .info-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+        .info-card { padding: 24px; }
+        .info-card .ic {
+            display: grid;
+            place-items: center;
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            margin-bottom: 14px;
+            font-size: 24px;
+            color: var(--ink);
+        }
+        .info-card h3 { margin: 0; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+        .info-card .main { font-size: 1.3em; font-weight: 700; margin: 2px 0 8px; }
+        .info-card p { margin: 0 0 6px; color: var(--muted); }
+
+        /* Games */
+        .games-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+        .game-card {
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+            padding: 0;
+            overflow: hidden;
+            color: var(--text);
+            font: inherit;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+        }
+        .game-card:hover, .game-card:focus-visible {
+            transform: translateY(-5px) rotate(-0.4deg);
+            box-shadow: 0 18px 36px rgba(0,0,0,0.35);
+            border-color: var(--c);
+            outline: none;
+        }
+        .gc-top {
+            position: relative;
+            height: 110px;
+            background: var(--c);
+            background:
+                radial-gradient(circle at 80% 20%, rgba(255,255,255,0.35), transparent 45%),
+                linear-gradient(135deg, var(--c), color-mix(in srgb, var(--c) 45%, #000));
+        }
+        .gc-mono {
+            position: absolute;
+            left: 18px;
+            bottom: -32px;
+            display: grid;
+            place-items: center;
+            width: 68px;
+            height: 68px;
+            overflow: hidden;
+            border-radius: 16px;
+            background: var(--ink);
+            border: 3px solid var(--c);
+            font-size: 1.8em;
+            font-weight: 800;
+            color: var(--c);
+        }
+        .gc-mono svg { width: 44px; height: 44px; }
+        .gc-mono img { width: 100%; height: 100%; object-fit: cover; }
+        .gc-cat {
+            position: absolute;
+            right: 12px;
+            top: 12px;
+            padding: 2px 10px;
+            border-radius: 999px;
+            background: rgba(0,0,0,0.35);
+            font-size: 0.75em;
+            font-weight: 600;
+        }
+        .gc-body { padding: 42px 18px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+        .gc-body h3 { margin: 0; font-size: 1.2em; }
+        .gc-body p { margin: 0; color: var(--muted); font-size: 0.92em; flex: 1; }
+        .soon { font-style: italic; opacity: 0.8; }
+        .meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.85em; color: var(--text); }
+        .meta span { display: inline-flex; align-items: center; gap: 5px; }
+        .pips { display: inline-flex; gap: 3px; }
+        .pips i { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.18); }
+        .pips i.on { background: var(--gold); }
+
+        /* ---------- Dialogs ---------- */
+        dialog {
+            border: 0;
+            padding: 0;
+            background: transparent;
+            color: var(--text);
+            max-width: min(720px, calc(100vw - 24px));
+            width: 100%;
+        }
+        dialog::backdrop { background: rgba(3, 12, 8, 0.78); backdrop-filter: blur(4px); }
+        .modal-inner {
+            position: relative;
+            max-height: calc(100vh - 48px);
+            overflow-y: auto;
+            background: #0f2c22;
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+        }
+        .modal-head {
+            padding: 28px 28px 22px;
+            background: var(--c);
+            background: linear-gradient(135deg, var(--c), color-mix(in srgb, var(--c) 40%, #000));
+        }
+        .modal-head h2 { margin: 0 0 8px; font-size: 1.8em; }
+        .modal-head p { margin: 10px 0 0; opacity: 0.9; }
+        .modal-body { padding: 8px 28px 28px; }
+        .rule { margin-top: 20px; }
+        .rule h3 {
+            margin: 0 0 6px;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--gold);
+        }
+        .rule p { margin: 0; }
+        .close-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 2;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: 0;
+            background: rgba(0,0,0,0.4);
+            color: #fff;
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .close-btn:hover { background: rgba(0,0,0,0.6); }
+
+        /* ---------- Footer ---------- */
+        footer {
+            text-align: center;
+            padding: 36px 24px 48px;
+            color: var(--muted);
+            border-top: 1px solid var(--panel-border);
+            font-size: 0.92em;
+        }
+        footer p { margin: 6px 0; }
+
+        @media (max-width: 640px) {
+            .topbar { padding: 8px 12px; gap: 8px; }
+            .brand span { display: none; }
+            .nav-links { margin-left: 0; flex: 1; }
+            .nav-links a { padding: 6px 8px; font-size: 0.92em; }
+            .hero { padding: 56px 16px 52px; }
+            .floaty.f1, .floaty.f3 { width: 44px; top: 14px; }
+            .floaty.f2, .floaty.f4 { display: none; }
+            main section { padding: 44px 16px; }
+            .modal-head, .modal-body { padding-left: 20px; padding-right: 20px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            *, *::before, *::after { animation: none !important; transition: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-die" viewBox="0 0 64 64">
+        <rect x="4" y="4" width="56" height="56" rx="13" fill="currentColor"/>
+        <g fill="#07170f"><circle cx="20" cy="20" r="5"/><circle cx="44" cy="20" r="5"/><circle cx="32" cy="32" r="5"/><circle cx="20" cy="44" r="5"/><circle cx="44" cy="44" r="5"/></g>
+    </symbol>
+    <symbol id="i-pawn" viewBox="0 0 64 64">
+        <circle cx="32" cy="15" r="10" fill="currentColor"/>
+        <path d="M25 27h14l7 23H18z" fill="currentColor"/>
+        <rect x="12" y="49" width="40" height="9" rx="4.5" fill="currentColor"/>
+    </symbol>
+    <symbol id="i-card" viewBox="0 0 64 64">
+        <rect x="14" y="5" width="36" height="54" rx="6" fill="currentColor"/>
+        <path d="M32 19l9 13-9 13-9-13z" fill="#07170f"/>
+    </symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+    </symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+        <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>
+    </symbol>
+    <symbol id="i-people" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14a5 5 0 0 1 5 6"/>
+    </symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+        <path d="M4 5h16v11H9l-5 4z"/>
+    </symbol>
+
+    <!-- Game pictures: art-<game id>, used on the cards when the game has no image -->
+    <symbol id="art-saboteur" viewBox="0 0 64 64">
+        <g transform="rotate(-35 32 32)" fill="currentColor">
+            <rect x="27.5" y="14" width="9" height="46" rx="4.5"/>
+            <path d="M3 27C15 7 49 7 61 27l-7 5C44 18 20 18 10 32z"/>
+        </g>
+    </symbol>
+    <symbol id="art-uno" viewBox="0 0 64 64">
+        <rect x="12" y="7" width="34" height="50" rx="6" fill="currentColor" opacity="0.45" transform="rotate(-14 29 32)"/>
+        <rect x="18" y="7" width="34" height="50" rx="6" fill="currentColor" transform="rotate(10 35 32)"/>
+        <ellipse cx="35" cy="32" rx="10" ry="18" fill="#07170f" transform="rotate(40 35 32)"/>
+        <ellipse cx="35" cy="32" rx="5" ry="10" fill="currentColor" transform="rotate(40 35 32)"/>
+    </symbol>
+    <symbol id="art-terra-a-vista" viewBox="0 0 64 64">
+        <path d="M6 12l16-5 20 6 16-5v44l-16 5-20-6-16 5z" fill="currentColor"/>
+        <path d="M13 44c6-2 8-9 15-10s9-7 12-11" fill="none" stroke="#07170f" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="1 5"/>
+        <path d="M42 15l10 10M52 15L42 25" stroke="#07170f" stroke-width="4" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="art-imagem-e-acao" viewBox="0 0 64 64">
+        <g transform="rotate(45 32 32)">
+            <rect x="25" y="2" width="14" height="10" rx="3" fill="currentColor" opacity="0.6"/>
+            <rect x="25" y="14" width="14" height="32" fill="currentColor"/>
+            <path d="M25 48h14l-7 14z" fill="currentColor"/>
+            <path d="M29.5 57h5L32 62z" fill="#07170f"/>
+        </g>
+    </symbol>
+    <symbol id="art-werewolf" viewBox="0 0 64 64">
+        <path d="M10 5l15 15h14L54 5l2 27-10 14-14 14-14-14L8 32z" fill="currentColor"/>
+        <path d="M18 31l9 3-7 3zM46 31l-9 3 7 3z" fill="#07170f"/>
+        <path d="M27 47h10l-5 6z" fill="#07170f"/>
+    </symbol>
+    <symbol id="art-spyfall" viewBox="0 0 64 64">
+        <path d="M18 24l3-15c7 3 15 3 22 0l3 15z" fill="currentColor"/>
+        <rect x="6" y="24" width="52" height="6" rx="3" fill="currentColor"/>
+        <circle cx="21" cy="43" r="10" fill="currentColor"/><circle cx="43" cy="43" r="10" fill="currentColor"/>
+        <circle cx="21" cy="43" r="5.5" fill="#07170f"/><circle cx="43" cy="43" r="5.5" fill="#07170f"/>
+        <rect x="29" y="40" width="6" height="4" fill="currentColor"/>
+    </symbol>
+    <symbol id="art-avalon" viewBox="0 0 64 64">
+        <path d="M7 46L10 16l12 13 10-19 10 19 12-13 3 30z" fill="currentColor"/>
+        <rect x="7" y="49" width="50" height="8" rx="3" fill="currentColor"/>
+        <circle cx="20" cy="39" r="3.5" fill="#07170f"/><circle cx="32" cy="37" r="4.5" fill="#07170f"/><circle cx="44" cy="39" r="3.5" fill="#07170f"/>
+    </symbol>
+    <symbol id="art-crack" viewBox="0 0 64 64">
+        <rect x="14" y="5" width="36" height="54" rx="6" fill="currentColor"/>
+        <path d="M32 16c-6 8-13 12-13 19a7 7 0 0 0 12 4.5L29 48h6l-2-8.5A7 7 0 0 0 45 35c0-7-7-11-13-19z" fill="#07170f"/>
+    </symbol>
+    <symbol id="art-owls-ass" viewBox="0 0 64 64">
+        <path d="M14 22L16 5l13 10h6L48 5l2 17c5 15 1 36-18 37C13 58 9 37 14 22z" fill="currentColor"/>
+        <circle cx="23" cy="27" r="8" fill="#07170f"/><circle cx="41" cy="27" r="8" fill="#07170f"/>
+        <circle cx="24" cy="28" r="3" fill="currentColor"/><circle cx="40" cy="28" r="3" fill="currentColor"/>
+        <path d="M28.5 36h7L32 43z" fill="#07170f"/>
+        <path d="M22 47c3 3 6 4 10 4s7-1 10-4" fill="none" stroke="#07170f" stroke-width="2.5" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="art-caracaca" viewBox="0 0 64 64">
+        <rect x="18" y="8" width="28" height="42" rx="5" fill="currentColor" opacity="0.4" transform="rotate(-22 32 56)"/>
+        <rect x="18" y="8" width="28" height="42" rx="5" fill="currentColor" opacity="0.7" transform="rotate(22 32 56)"/>
+        <rect x="18" y="8" width="28" height="42" rx="5" fill="currentColor"/>
+        <path d="M32 19l7 10-7 10-7-10z" fill="#07170f"/>
+    </symbol>
+</svg>
+
+<nav class="topbar">
+    <a class="brand" href="#top"><svg><use href="#i-die"/></svg><span data-i18n="brand">Noite de Jogos</span></a>
+    <div class="nav-links">
+        <a href="#info" data-i18n="nav_info">Informações</a>
+        <a href="#games" data-i18n="nav_games">Jogos</a>
+    </div>
+    <div class="lang-toggle" role="group" aria-label="Idioma / Language">
+        <button type="button" data-lang="pt" aria-pressed="true">PT</button>
+        <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+</nav>
+
+<header class="hero" id="top">
+    <svg class="floaty f1" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-die"/></svg>
+    <svg class="floaty f2" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-pawn"/></svg>
+    <svg class="floaty f3" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-card"/></svg>
+    <svg class="floaty f4" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-die"/></svg>
+    <div class="hero-inner">
+        <p class="eyebrow">IMPA · Rio de Janeiro</p>
+        <h1 data-i18n="hero_title">Noite de Jogos</h1>
+        <p class="hero-sub" data-i18n="hero_sub">Toda quinta-feira, das 18:30 às 21:00</p>
+        <p class="hero-tag" data-i18n="hero_tag"></p>
+
+        <div class="cta">
+            <a class="btn primary" href="#games"><svg class="icon"><use href="#i-die"/></svg><span data-i18n="cta_games"></span></a>
+        </div>
+    </div>
+</header>
+
+<main>
+    <section id="info">
+        <div class="section-head">
+            <h2 data-i18n="info_title"></h2>
+        </div>
+        <div class="info-grid">
+            <div class="info-card panel">
+                <div class="ic" style="background: var(--gold)"><svg class="icon"><use href="#i-clock"/></svg></div>
+                <h3 data-i18n="when_title"></h3>
+                <div class="main" data-i18n="when_main"></div>
+                <p data-i18n="when_text"></p>
+            </div>
+            <div class="info-card panel">
+                <div class="ic" style="background: var(--red)"><svg class="icon"><use href="#i-pin"/></svg></div>
+                <h3 data-i18n="where_title"></h3>
+                <div class="main">IMPA</div>
+                <p id="room"></p>
+            </div>
+            <div class="info-card panel">
+                <div class="ic" style="background: var(--teal)"><svg class="icon"><use href="#i-people"/></svg></div>
+                <h3 data-i18n="who_title"></h3>
+                <div class="main" data-i18n="who_main"></div>
+                <p data-i18n="who_text"></p>
+            </div>
+            <div class="info-card panel">
+                <div class="ic" style="background: var(--purple)"><svg class="icon"><use href="#i-chat"/></svg></div>
+                <h3 data-i18n="chat_title"></h3>
+                <div class="main" data-i18n="chat_main"></div>
+                <p data-i18n="chat_text"></p>
+            </div>
+        </div>
+    </section>
+
+    <section id="games">
+        <div class="section-head">
+            <h2 data-i18n="games_title"></h2>
+            <p data-i18n="games_lead"></p>
+        </div>
+        <div class="games-grid" id="games-grid"></div>
+    </section>
+</main>
+
+<footer>
+    <p data-i18n="footer_text"></p>
+    <p><a href="index.html" data-i18n="footer_home"></a></p>
+</footer>
+
+<dialog id="game-modal">
+    <div class="modal-inner">
+        <button class="close-btn" type="button" data-close>&times;</button>
+        <div id="modal-content"></div>
+    </div>
+</dialog>
+
+<script>
+    // =====================================================================
+    //  EDIT HERE: event details and games
+    // =====================================================================
+
+    const CONFIG = {
+        room: { pt: 'Sala do chá', en: 'Tea Room' }
+    };
+
+    // Only id and name are required. Everything else is optional:
+    //   players [min, max] (or [min] for "min+"), minutes, complexity (1-5),
+    //   category (a key of STRINGS[lang].cat, also sets the card color),
+    //   desc {pt, en}, rules {pt, en} each with objective/setup/turn/end,
+    //   link (official rules, e.g. a PDF),
+    //   image (a photo, e.g. 'gamenight/saboteur.jpg'; replaces the drawing on the card).
+    // Games without rules show "Rules coming soon".
+    const GAMES = [
+        {
+            id: 'saboteur', name: 'Saboteur', players: [3, 10], minutes: 30, complexity: 1, category: 'bluffing',
+            desc: {
+                pt: 'Anões cavam túneis em busca de ouro, mas alguns deles são sabotadores disfarçados.',
+                en: 'Dwarves dig tunnels looking for gold, but some of them are secret saboteurs.'
+            },
+            rules: {
+                pt: {
+                    objective: 'Os mineradores querem abrir um túnel até o ouro; os sabotadores querem impedir isso sem serem descobertos.',
+                    setup: 'Cada jogador recebe um papel secreto: minerador ou sabotador (a quantidade depende do número de jogadores). Coloque a carta de entrada e, a 7 cartas de distância, as 3 cartas de destino viradas para baixo: só uma tem ouro. Distribua as cartas de jogo (6 cada com 3–5 jogadores, 5 com 6–7, 4 com 8–10).',
+                    turn: 'Faça uma ação e compre uma carta: jogue uma carta de caminho para continuar o túnel a partir da entrada; jogue uma carta de ação (quebrar ou consertar a picareta, a lanterna ou o carrinho de alguém, e quem tem ferramenta quebrada não pode jogar caminhos; usar um mapa para espiar uma carta de destino; ou provocar um desmoronamento e remover um caminho); ou descarte uma carta virada para baixo.',
+                    end: 'Se um caminho chegar ao ouro, os mineradores vencem e dividem as pepitas. Se as cartas acabarem antes, os sabotadores vencem. Joga-se 3 rodadas; quem tiver mais ouro no final vence.'
+                },
+                en: {
+                    objective: 'The gold-diggers want to dig a tunnel to the gold; the saboteurs want to stop them without being found out.',
+                    setup: 'Each player gets a secret role: gold-digger or saboteur (how many depends on the player count). Place the start card and, 7 cards away, the 3 goal cards face down: only one has gold. Deal the playing cards (6 each with 3–5 players, 5 with 6–7, 4 with 8–10).',
+                    turn: 'Take one action, then draw a card: play a path card to extend the tunnel from the start; play an action card (break or repair someone\'s pickaxe, lantern or cart, since a player with a broken tool can\'t play paths; use a map to peek at a goal card; or cause a rockfall to remove a path); or discard a card face down.',
+                    end: 'If a path reaches the gold, the gold-diggers win and share the nuggets. If the cards run out first, the saboteurs win. Play 3 rounds; whoever has the most gold at the end wins.'
+                }
+            }
+        },
+        {
+            id: 'uno', name: 'Uno', players: [2, 10], minutes: 20, complexity: 1, category: 'cards',
+            desc: {
+                pt: 'O clássico: combine cor ou número e não esqueça de gritar UNO!',
+                en: 'The classic: match color or number and don\'t forget to shout UNO!'
+            },
+            rules: {
+                pt: {
+                    objective: 'Ser o primeiro a se livrar de todas as cartas.',
+                    setup: 'Distribua 7 cartas para cada jogador e vire a carta do topo para começar a pilha de descarte.',
+                    turn: 'Jogue uma carta com a mesma cor, número ou símbolo da carta do topo, ou um Coringa. Se não puder, compre uma carta (e jogue-a, se servir). Cartas de ação: Pular, Inverter, +2, Coringa e Coringa +4.',
+                    end: 'Diga "UNO" quando tiver uma carta só; se for pego sem dizer, compre 2. Quem esvaziar a mão vence a rodada e soma os pontos das cartas dos adversários.'
+                },
+                en: {
+                    objective: 'Be the first to get rid of all your cards.',
+                    setup: 'Deal 7 cards to each player and flip the top card to start the discard pile.',
+                    turn: 'Play a card matching the top card\'s color, number or symbol, or a Wild. If you can\'t, draw one card (and play it if it fits). Action cards: Skip, Reverse, Draw Two, Wild and Wild Draw Four.',
+                    end: 'Say "UNO" when you have one card left; if you get caught not saying it, draw 2. Whoever empties their hand wins the round and scores the points of the opponents\' cards.'
+                }
+            }
+        },
+        {
+            id: 'terra-a-vista', name: 'Terra à Vista', players: [2, 4], minutes: 20, complexity: 2, category: 'strategy',
+            desc: {
+                pt: 'Piratas em busca do tesouro: empurre e gire as peças do mapa até ele bater com a sua carta.',
+                en: 'Pirates hunting for treasure: push and turn the map tiles until they match your card.'
+            },
+            rules: {
+                pt: {
+                    objective: 'Ser o primeiro a montar no tabuleiro o desenho da sua carta de objetivo (o mapa do tesouro), com as peças na ordem e na direção certas.',
+                    setup: 'Monte o tabuleiro de 6×6 peças dentro da moldura; as peças restantes formam o monte. Cada jogador recebe uma carta de objetivo, que fica visível na mesa, e uma ficha de âncora.',
+                    turn: 'Escolha uma ação: comprar uma peça do monte e usá-la para empurrar uma linha ou coluna do tabuleiro; girar qualquer uma das 36 peças do tabuleiro; ou colocar sua âncora em uma peça para travá-la durante uma rodada inteira.',
+                    end: 'Vence quem completar primeiro o desenho da sua carta de objetivo.'
+                },
+                en: {
+                    objective: 'Be the first to recreate the picture on your objective card (the treasure map) on the board, with the tiles in the right order and facing the right way.',
+                    setup: 'Build the 6×6 board of tiles inside the frame; the remaining tiles form the draw pile. Each player gets an objective card, kept face up on the table, and an anchor token.',
+                    turn: 'Choose one action: draw a tile and use it to push a row or column of the board; rotate any of the 36 board tiles; or put your anchor on a tile to lock it for a whole round.',
+                    end: 'The first player to complete the picture on their objective card wins.'
+                }
+            },
+            link: 'https://ludopedia.com.br/jogo/terra-a-vista'
+        },
+        {
+            id: 'imagem-e-acao', name: 'Imagem & Ação', players: [4], minutes: 45, complexity: 1, category: 'party',
+            desc: {
+                pt: 'O clássico brasileiro de desenhar e adivinhar, em equipes e contra a ampulheta.',
+                en: 'The Brazilian classic of drawing and guessing (think Pictionary), in teams and against the hourglass.'
+            },
+            rules: {
+                pt: {
+                    objective: 'Ser a primeira equipe a chegar ao fim do tabuleiro.',
+                    setup: 'Formem 2 ou 4 equipes (mínimo de 4 jogadores) e coloquem os peões na saída. Cada equipe rola o dado; quem tirar o maior número começa.',
+                    turn: 'A equipe escolhe quem vai desenhar. Essa pessoa pega uma carta e desenha a palavra da categoria da casa onde está o peão: O (objeto), P (pessoa, lugar ou animal), A (ação), D (difícil) ou L (lazer). Vire a ampulheta: a equipe precisa adivinhar antes de a areia acabar. Não vale escrever letras ou números, nem fazer mímica. Se acertar, a equipe rola o dado, avança e joga de novo; se errar, a vez passa para a próxima equipe. Nas casas T (todos jogam), todo mundo pode adivinhar o desenho.',
+                    end: 'A equipe que cruzar a linha de chegada primeiro vence.'
+                },
+                en: {
+                    objective: 'Be the first team to reach the end of the board.',
+                    setup: 'Form 2 or 4 teams (at least 4 players) and put the pawns on the start. Each team rolls the die; the highest roll goes first.',
+                    turn: 'The team picks someone to draw. That person takes a card and draws the word for the category of the square their pawn is on: O (object), P (person, place or animal), A (action), D (difficult) or L (leisure). Flip the hourglass: the team must guess before the sand runs out. No letters, numbers or miming allowed. If they guess it, the team rolls the die, moves and goes again; if not, the turn passes to the next team. On T squares (all play), everyone can guess the drawing.',
+                    end: 'The first team to cross the finish line wins.'
+                }
+            }
+        },
+        {
+            id: 'werewolf', name: 'Werewolf', players: [6, 18], minutes: 30, complexity: 1, category: 'bluffing',
+            desc: {
+                pt: 'Uma vila, lobisomens escondidos entre os moradores e muitas acusações.',
+                en: 'A village, werewolves hiding among the villagers, and plenty of accusations.'
+            },
+            rules: {
+                pt: {
+                    objective: 'Os aldeões precisam descobrir e eliminar os lobisomens; os lobisomens querem eliminar os aldeões.',
+                    setup: 'Um narrador conduz o jogo. Cada jogador recebe um papel secreto: lobisomem, aldeão ou um papel especial, como a vidente. Os papéis especiais variam de mesa para mesa.',
+                    turn: 'À noite, todos fecham os olhos; os lobisomens acordam e escolhem uma vítima, e a vidente descobre o papel de um jogador. De dia, o narrador revela quem morreu, todos discutem e votam para eliminar um suspeito, que revela seu papel.',
+                    end: 'Os aldeões vencem quando todos os lobisomens forem eliminados. Os lobisomens vencem quando forem tantos quanto os aldeões.'
+                },
+                en: {
+                    objective: 'The villagers must find and eliminate the werewolves; the werewolves want to eliminate the villagers.',
+                    setup: 'A narrator runs the game. Each player gets a secret role: werewolf, villager or a special role such as the seer. Special roles vary from table to table.',
+                    turn: 'At night everyone closes their eyes; the werewolves wake up and choose a victim, and the seer learns one player\'s role. During the day the narrator reveals who died, everyone argues and votes to eliminate a suspect, who reveals their role.',
+                    end: 'The villagers win when every werewolf has been eliminated. The werewolves win when they are as many as the villagers.'
+                }
+            }
+        },
+        {
+            id: 'spyfall', name: 'Spyfall', players: [3, 8], minutes: 15, complexity: 1, category: 'bluffing',
+            desc: {
+                pt: 'Todos sabem onde estão, menos o espião. Faça perguntas e desconfie das respostas.',
+                en: 'Everyone knows where they are, except the spy. Ask questions and doubt the answers.'
+            },
+            rules: {
+                pt: {
+                    objective: 'Os jogadores comuns querem descobrir o espião; o espião quer passar despercebido ou adivinhar o local.',
+                    setup: 'A cada rodada, cada jogador recebe uma carta secreta: todos recebem o mesmo local (por exemplo, um avião ou uma praia), menos um, que recebe a carta de espião. Ligue um cronômetro de 8 minutos.',
+                    turn: 'Um jogador faz uma pergunta a outro sobre o local; quem responde faz a próxima pergunta a outra pessoa (não vale devolver para quem acabou de perguntar). As perguntas devem mostrar que você conhece o local sem entregá-lo ao espião. Uma vez por rodada, cada jogador pode acusar alguém: se todos os outros concordarem, o acusado revela a carta. A qualquer momento, o espião pode se revelar e tentar adivinhar o local.',
+                    end: 'Se o espião for descoberto, os outros vencem a rodada. O espião vence se um inocente for acusado, se o tempo acabar sem que ele seja pego ou se adivinhar o local (se errar, perde). Jogue várias rodadas e some os pontos.'
+                },
+                en: {
+                    objective: 'The regular players want to find the spy; the spy wants to stay hidden or work out the location.',
+                    setup: 'Each round, every player gets a secret card: everyone gets the same location (say, a plane or a beach) except one player, who gets the spy card. Start an 8-minute timer.',
+                    turn: 'A player asks another a question about the location; whoever answers asks the next question to someone else (not back to the person who just asked). Questions should show you know the place without giving it away to the spy. Once per round, each player may accuse someone: if everyone else agrees, the accused reveals their card. At any moment, the spy may reveal themselves and guess the location.',
+                    end: 'If the spy is caught, everyone else wins the round. The spy wins if an innocent player is accused, if time runs out without them being caught, or if they guess the location (a wrong guess loses). Play several rounds and add up the points.'
+                }
+            }
+        },
+        {
+            id: 'avalon', name: 'Avalon', category: 'custom',
+            desc: {
+                pt: 'Uma versão em cartas de "The Resistance".',
+                en: 'A card-game version of "The Resistance".'
+            }
+        },
+        {
+            id: 'crack', name: 'Crack', players: [3, 8], minutes: '∞', category: 'custom',
+            desc: {
+                pt: 'Um jogo de blefe com regras emprestadas do pôquer: anuncie uma mão e torça para ninguém duvidar.',
+                en: 'A bluffing game borrowing rules from poker: call out a hand and hope nobody doubts you.'
+            },
+            rules: {
+                pt: {
+                    objective: 'Não ser pego mentindo, nem acusar quem está falando a verdade, para não acumular cartas e ser eliminado.',
+                    setup: 'Cada jogador começa recebendo uma mão de 1 carta.',
+                    turn: 'Anuncie uma mão de pôquer que, segundo você, pode ser formada com todas as cartas na mesa (as mãos de todos os jogadores juntas). O próximo jogador escolhe: dizer que você está mentindo ou anunciar uma mão mais forte.',
+                    end: 'Perde a rodada quem for pego mentindo ou quem acusar de mentira um jogador que falava a verdade. Quem perde recebe uma carta a mais na próxima rodada; com 5 cartas ou mais, o jogador é eliminado.'
+                },
+                en: {
+                    objective: 'Don\'t get caught lying, and don\'t accuse a player who is telling the truth, so you don\'t pile up cards and get eliminated.',
+                    setup: 'Each player starts with a 1-card hand.',
+                    turn: 'Call out a poker hand that you claim can be made from all the cards on the table (everyone\'s hands put together). The next player either says you are lying or calls out a stronger hand.',
+                    end: 'You lose the round if you get caught lying or if you say a truthful player is lying. The loser gets one extra card in the next round; a player with 5 or more cards is eliminated.'
+                }
+            }
+        },
+        {
+            id: 'owls-ass', name: "Owl's Ass", players: [4, 10], minutes: 10, category: 'custom',
+            desc: {
+                pt: 'Troque, descarte e memorize: termine com o menor número de pontos nas suas cartas viradas para baixo.',
+                en: 'Swap, discard and remember: end with the fewest points in your face-down cards.'
+            },
+            rules: {
+                pt: {
+                    objective: 'Terminar com a menor quantidade de pontos nas suas cartas.',
+                    setup: 'Cada jogador recebe 4 cartas viradas para baixo.',
+                    turn: 'Compre uma carta do monte e decida se quer trocá-la por uma das suas cartas; depois descarte. Ao descartar um Valete, você pode embaralhar as cartas de um jogador; ao descartar uma Dama, você pode olhar uma das suas cartas. A qualquer momento, qualquer jogador pode colocar uma das suas cartas na pilha de descarte: se for igual à carta do topo, ela fica descartada; se não for, o jogador a pega de volta e recebe mais uma carta virada para baixo.',
+                    end: 'Depois de jogar a sua vez, você pode dizer "Quero ver o cu da coruja": o jogo continua só mais uma rodada e então termina. Pontuação: Ás a 10 valem o seu número, Valete e Dama valem 10, Rei vermelho vale 0 e Rei preto vale 30.'
+                },
+                en: {
+                    objective: 'End the game with the fewest points in your cards.',
+                    setup: 'Each player is dealt 4 cards face down.',
+                    turn: 'Draw a card from the deck and decide whether to swap it with one of your cards, then discard. Discarding a Jack lets you shuffle a player\'s hand; discarding a Queen lets you look at one of your own cards. At any moment, any player may put one of their cards on the discard pile: if it matches the top card, it stays discarded; if not, they take it back and get an extra face-down card.',
+                    end: 'After playing your turn, you may say "Quero ver o cu da coruja" ("I want to see the owl\'s ass"): the game goes on for only one more round, then ends. Scoring: Ace to 10 are worth their number, Jack and Queen are worth 10, a red King is worth 0 and a black King is worth 30.'
+                }
+            }
+        },
+        { id: 'caracaca', name: 'Caracaca', category: 'custom' }
+    ];
+
+    // =====================================================================
+    //  Translations
+    // =====================================================================
+
+    const STRINGS = {
+        pt: {
+            doc_title: 'Noite de Jogos · IMPA',
+            brand: 'Noite de Jogos',
+            nav_info: 'Informações',
+            nav_games: 'Jogos',
+            hero_title: 'Noite de Jogos',
+            hero_sub: 'Toda quinta-feira, das 18:30 às 21:00',
+            hero_tag: 'Jogos de tabuleiro, cartas e boas risadas. Todo mundo é bem-vindo, sem precisar de experiência!',
+            cta_games: 'Ver os jogos',
+            info_title: 'Como funciona',
+            when_title: 'Quando',
+            when_main: 'Quintas, 18:30–21:00',
+            when_text: 'Toda semana. Chegue na hora que puder.',
+            where_title: 'Onde',
+            who_title: 'Quem',
+            who_main: 'Todo mundo',
+            who_text: 'Não precisa saber jogar: a gente explica as regras. Traga um amigo (ou um jogo!).',
+            chat_title: 'Grupo',
+            chat_main: 'Fique por dentro',
+            chat_text: 'Entre no grupo para saber mais sobre a noite e eventos especiais!',
+            games_title: 'Nossos jogos',
+            games_lead: 'Clique em um jogo para ver um resumo das regras.',
+            players_fmt: '{a}–{b} jogadores',
+            players_min_fmt: '{a}+ jogadores',
+            minutes_fmt: '~{n} min',
+            complexity: 'Complexidade',
+            r_objective: 'Objetivo', r_setup: 'Preparação', r_turn: 'Na sua vez', r_end: 'Fim de jogo e pontuação',
+            official_rules: 'Manual e mais informações',
+            rules_soon: 'Regras em breve',
+            rules_soon_long: 'Ainda estamos escrevendo o resumo das regras deste jogo. Pergunte na noite de jogos: a gente ensina!',
+            close: 'Fechar',
+            footer_text: 'Noite de Jogos do IMPA · organizada por David Melo e Mauricio',
+            footer_home: 'Página inicial',
+            cat: { party: 'Festa', bluffing: 'Blefe', strategy: 'Estratégia', cards: 'Cartas', coop: 'Cooperativo', custom: 'Caseiro' }
+        },
+        en: {
+            doc_title: 'Game Night · IMPA',
+            brand: 'Game Night',
+            nav_info: 'Info',
+            nav_games: 'Games',
+            hero_title: 'Game Night',
+            hero_sub: 'Every Thursday, 6:30 to 9 PM',
+            hero_tag: 'Board games, card games and good laughs. Everyone is welcome, no experience needed!',
+            cta_games: 'See the games',
+            info_title: 'How it works',
+            when_title: 'When',
+            when_main: 'Thursdays, 6:30–9 PM',
+            when_text: 'Every week. Drop in whenever you can.',
+            where_title: 'Where',
+            who_title: 'Who',
+            who_main: 'Everyone',
+            who_text: 'No need to know the games: we teach the rules. Bring a friend (or a game!).',
+            chat_title: 'Group chat',
+            chat_main: 'Stay in the loop',
+            chat_text: 'Join the group to hear about each night and special events.',
+            games_title: 'Our games',
+            games_lead: 'Click a game for a rules summary.',
+            players_fmt: '{a}–{b} players',
+            players_min_fmt: '{a}+ players',
+            minutes_fmt: '~{n} min',
+            complexity: 'Complexity',
+            r_objective: 'Objective', r_setup: 'Setup', r_turn: 'On your turn', r_end: 'Game end and scoring',
+            official_rules: 'Rulebook and more info',
+            rules_soon: 'Rules coming soon',
+            rules_soon_long: 'We are still writing up the rules for this one. Ask at game night: we will teach you!',
+            close: 'Close',
+            footer_text: 'IMPA Game Night · organized by David Melo and Mauricio',
+            footer_home: 'Home page',
+            cat: { party: 'Party', bluffing: 'Bluffing', strategy: 'Strategy', cards: 'Cards', coop: 'Cooperative', custom: 'Homemade' }
+        }
+    };
+
+    const CAT_COLORS = {
+        party: 'var(--red)', bluffing: 'var(--purple)', strategy: 'var(--teal)',
+        cards: 'var(--orange)', coop: 'var(--blue)', custom: 'var(--gold)'
+    };
+
+    // =====================================================================
+    //  i18n
+    // =====================================================================
+
+    let lang = 'pt';
+    const t = key => STRINGS[lang][key];
+    const fmt = (s, vars) => s.replace(/\{(\w+)\}/g, (_, k) => vars[k]);
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    function setLang(next) {
+        lang = next;
+        try { localStorage.setItem('gamenight-lang', lang); } catch (e) {}
+        document.documentElement.lang = lang === 'pt' ? 'pt-BR' : 'en';
+        document.title = t('doc_title');
+        document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+        document.querySelectorAll('.lang-toggle button').forEach(b => b.setAttribute('aria-pressed', b.dataset.lang === lang));
+        document.querySelectorAll('[data-close]').forEach(b => b.setAttribute('aria-label', t('close')));
+
+        document.getElementById('room').textContent = CONFIG.room[lang];
+
+        renderGames();
+        if (gameModal.open && openGameId) renderModal(openGameId);
+    }
+
+    document.querySelectorAll('.lang-toggle button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+
+    // =====================================================================
+    //  Games catalog
+    // =====================================================================
+
+    const pips = n => '<span class="pips" aria-label="' + esc(t('complexity')) + ' ' + n + '/5">' +
+        [1, 2, 3, 4, 5].map(i => '<i class="' + (i <= n ? 'on' : '') + '"></i>').join('') + '</span>';
+
+    function metaHtml(g) {
+        const parts = [];
+        if (g.players) parts.push('<svg class="icon"><use href="#i-people"/></svg>' + esc(fmt(t(g.players[1] ? 'players_fmt' : 'players_min_fmt'), { a: g.players[0], b: g.players[1] })));
+        if (g.minutes) parts.push('<svg class="icon"><use href="#i-clock"/></svg>' + esc(fmt(t('minutes_fmt'), { n: g.minutes })));
+        if (g.complexity) parts.push(pips(g.complexity));
+        return parts.length ? '<div class="meta"><span>' + parts.join('</span><span>') + '</span></div>' : '';
+    }
+
+    const gameColor = g => CAT_COLORS[g.category] || 'var(--teal)';
+
+    // Photo if set, else the drawing art-<id>, else the first letter of the name
+    function gamePicture(g) {
+        if (g.image) return '<img src="' + esc(g.image) + '" alt="">';
+        if (document.getElementById('art-' + g.id)) return '<svg aria-hidden="true"><use href="#art-' + esc(g.id) + '"/></svg>';
+        return esc(g.name.replace(/^The\s+/i, '')[0]);
+    }
+
+    function renderGames() {
+        document.getElementById('games-grid').innerHTML = GAMES.map(g =>
+            '<button type="button" class="game-card panel" data-id="' + esc(g.id) + '" style="--c: ' + gameColor(g) + '">' +
+                '<div class="gc-top">' + (g.category ? '<span class="gc-cat">' + esc(t('cat')[g.category] || g.category) + '</span>' : '') +
+                '<span class="gc-mono">' + gamePicture(g) + '</span></div>' +
+                '<div class="gc-body"><h3>' + esc(g.name) + '</h3>' +
+                (g.desc ? '<p>' + esc(g.desc[lang]) + '</p>' : '<p class="soon">' + esc(t('rules_soon')) + '</p>') +
+                metaHtml(g) + '</div>' +
+            '</button>'
+        ).join('');
+    }
+
+    const gameModal = document.getElementById('game-modal');
+    let openGameId = null;
+
+    function renderModal(id) {
+        const g = GAMES.find(x => x.id === id);
+        const r = g.rules ? g.rules[lang] : {};
+        const sections = [['r_objective', r.objective], ['r_setup', r.setup], ['r_turn', r.turn], ['r_end', r.end]]
+            .filter(([, text]) => text)
+            .map(([k, text]) => '<div class="rule"><h3>' + esc(t(k)) + '</h3><p>' + esc(text) + '</p></div>').join('');
+        gameModal.querySelector('.modal-inner').style.setProperty('--c', gameColor(g));
+        document.getElementById('modal-content').innerHTML =
+            '<div class="modal-head"><h2 id="modal-title">' + esc(g.name) + '</h2>' + metaHtml(g) +
+                (g.desc ? '<p>' + esc(g.desc[lang]) + '</p>' : '') + '</div>' +
+            '<div class="modal-body">' +
+                (sections || '<div class="rule"><p class="soon">' + esc(t('rules_soon_long')) + '</p></div>') +
+                (g.link ? '<div class="rule"><a class="btn ghost" href="' + esc(g.link) + '" target="_blank" rel="noopener">' + esc(t('official_rules')) + ' ↗</a></div>' : '') +
+            '</div>';
+        gameModal.setAttribute('aria-labelledby', 'modal-title');
+    }
+
+    document.getElementById('games-grid').addEventListener('click', e => {
+        const card = e.target.closest('.game-card');
+        if (!card) return;
+        openGameId = card.dataset.id;
+        renderModal(openGameId);
+        gameModal.showModal();
+        gameModal.querySelector('.modal-inner').scrollTop = 0;
+    });
+
+    // Close button, and clicks on the backdrop
+    gameModal.addEventListener('click', e => {
+        if (e.target === gameModal || e.target.closest('[data-close]')) gameModal.close();
+    });
+    gameModal.addEventListener('close', () => { openGameId = null; });
+
+    // =====================================================================
+    //  Start
+    // =====================================================================
+
+    let saved = null;
+    try { saved = localStorage.getItem('gamenight-lang'); } catch (e) {}
+    setLang(saved === 'pt' || saved === 'en' ? saved : ((navigator.language || '').toLowerCase().startsWith('pt') ? 'pt' : 'en'));
+</script>
+
+</body>
+</html>
