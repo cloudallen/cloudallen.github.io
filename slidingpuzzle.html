@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rush Hour - Mobile Ready</title>
+    <title>Rush Hour</title>
     <style>
+        :root { --cell: 60px; }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #2c3e50;
@@ -15,66 +17,122 @@
             padding: 20px;
             margin: 0;
             min-height: 100vh;
+            box-sizing: border-box;
         }
 
-        h1 { margin-bottom: 5px; }
-        
+        a { color: #5dade2; }
+
+        h1 { margin: 0 0 4px; }
+
+        .subtitle {
+            color: #95a5a6;
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        /* Puzzle picker */
+        #tier-tabs, #puzzle-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 6px;
+            max-width: 440px;
+        }
+        #tier-tabs { margin-bottom: 8px; }
+        #puzzle-buttons { margin-bottom: 14px; }
+
+        button {
+            background-color: #34495e;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 0.9rem;
+            font-family: inherit;
+        }
+        button:hover { background-color: #2980b9; }
+        button.active { background-color: #3498db; font-weight: bold; }
+        button:disabled { background-color: #4d5d6c; color: #95a5a6; cursor: not-allowed; }
+
+        .puzzle-btn { min-width: 64px; line-height: 1.2; }
+        .puzzle-btn small { display: block; font-size: 0.7rem; opacity: 0.75; }
+        .puzzle-btn.solved::after { content: ' \2713'; color: #2ecc71; }
+        .puzzle-btn.active.solved::after { color: white; }
+
         #level-title {
             font-size: 1.2rem;
             color: #3498db;
-            margin-bottom: 10px;
+            margin-bottom: 4px;
         }
+
+        #status {
+            display: flex;
+            gap: 18px;
+            font-size: 0.95rem;
+            color: #bdc3c7;
+        }
+        #status b { color: #ecf0f1; }
 
         #message {
-            height: 24px;
+            min-height: 24px;
             font-weight: bold;
-            margin-bottom: 15px;
-            font-size: 1.1rem;
+            margin: 6px 0 10px;
+            font-size: 1.05rem;
+            text-align: center;
+            max-width: 440px;
         }
 
-        /* The Game Board */
-        #game-container {
+        /* The Game Board. Everything inside is positioned in multiples of --cell. */
+        #board {
             position: relative;
-            width: 360px; /* 6 cols * 60px */
-            height: 360px; /* 6 rows * 60px */
+            width: calc(var(--cell) * 6);
+            height: calc(var(--cell) * 6);
             background-color: #34495e;
+            background-image:
+                linear-gradient(rgba(189, 195, 199, 0.3) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(189, 195, 199, 0.3) 1px, transparent 1px);
+            background-size: var(--cell) var(--cell);
             border: 4px solid #34495e;
             border-radius: 8px;
             overflow: hidden;
             /* CRITICAL FOR MOBILE: Prevents page scrolling when dragging */
-            touch-action: none; 
-            margin-bottom: 20px;
+            touch-action: none;
+            margin-bottom: 16px;
             box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            user-select: none;
+            -webkit-user-select: none;
         }
 
-        /* The exit marker */
-        #game-container::after {
+        /* The exit marker, on the red car's row (y = 2) */
+        #board::after {
             content: 'EXIT';
             position: absolute;
             right: 0;
-            top: 120px; /* 2nd row (y=2) * 60px */
-            height: 60px;
-            width: 40px;
+            top: calc(var(--cell) * 2);
+            height: var(--cell);
+            width: 28px;
             background: rgba(231, 76, 60, 0.2);
             color: #e74c3c;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 0.8rem;
+            font-size: 0.7rem;
             writing-mode: vertical-rl;
             border-left: 2px dashed #e74c3c;
             pointer-events: none;
         }
 
-        .grid-cell {
+        .wall {
             position: absolute;
-            width: 60px;
-            height: 60px;
-            border: 1px solid rgba(189, 195, 199, 0.3);
-            box-sizing: border-box;
-            pointer-events: none; /* Let clicks pass through to the cars */
-            color: #2c3e50;
+            width: calc(var(--cell) - 4px);
+            height: calc(var(--cell) - 4px);
+            border-radius: 4px;
+            background: repeating-linear-gradient(45deg, #1c2833 0 6px, #273746 6px 12px);
+            box-shadow: inset 0 0 0 2px rgba(0,0,0,0.3);
         }
 
         .vehicle {
@@ -86,426 +144,617 @@
             touch-action: none; /* Ensures the car itself catches the touch */
             z-index: 10;
         }
-        
-        .vehicle:active {
-            cursor: grabbing;
-            z-index: 20;
-        }
+        .vehicle.dragging { cursor: grabbing; z-index: 20; }
+        .vehicle.exiting { transition: left 0.6s ease-in; }
 
         .target-car {
             border: 2px solid #c0392b;
+            box-sizing: border-box;
             box-shadow: inset 0 0 0 2px rgba(255,255,255,0.2), 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .vehicle.hint { animation: pulse 0.8s ease-in-out infinite alternate; }
+        @keyframes pulse {
+            from { box-shadow: 0 0 0 2px #f1c40f; }
+            to   { box-shadow: 0 0 0 5px #f1c40f, 0 0 14px #f1c40f; }
+        }
+        .ghost {
+            position: absolute;
+            border: 2px dashed #f1c40f;
+            border-radius: 6px;
+            box-sizing: border-box;
+            pointer-events: none;
+            z-index: 5;
         }
 
         /* UI Controls */
         .controls {
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-            width: 100%;
-            max-width: 400px;
-        }
-
-        #level-buttons {
-            display: flex;
             flex-wrap: wrap;
             justify-content: center;
             gap: 8px;
+            margin-bottom: 18px;
         }
 
-        button {
-            background-color: #34495e;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background 0.2s;
-            font-size: 0.9rem;
-        }
-
-        button:hover { background-color: #2980b9; }
-        button.active { background-color: #3498db; font-weight: bold; }
-        
         #solve-button {
             background-color: #e67e22;
-            padding: 10px 20px;
-            font-size: 1.1rem;
             font-weight: bold;
-            border-radius: 6px;
         }
         #solve-button:hover { background-color: #d35400; }
-        #solve-button:disabled { background-color: #7f8c8d; cursor: not-allowed; }
+        #solve-button:disabled { background-color: #7f8c8d; }
 
+        details {
+            max-width: 440px;
+            width: 100%;
+            font-size: 0.9rem;
+            color: #bdc3c7;
+            margin-bottom: 18px;
+        }
+        summary { cursor: pointer; text-align: center; }
+        .custom-row { display: flex; gap: 6px; margin-top: 8px; }
+        #custom-input {
+            flex: 1;
+            min-width: 0;
+            font-family: Consolas, monospace;
+            font-size: 0.85rem;
+            padding: 6px;
+            border-radius: 4px;
+            border: 1px solid #566573;
+            background: #1c2833;
+            color: #ecf0f1;
+        }
+
+        footer {
+            max-width: 440px;
+            font-size: 0.8rem;
+            color: #95a5a6;
+            text-align: center;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
 
     <h1>Rush Hour</h1>
+    <div class="subtitle">Slide the cars and trucks so the red car can drive out the exit.</div>
+
+    <div id="tier-tabs"></div>
+    <div id="puzzle-buttons"></div>
+
     <div id="level-title"></div>
+    <div id="status">
+        <span>Moves: <b id="move-count">0</b></span>
+        <span>Optimal: <b id="optimal-count">-</b></span>
+    </div>
     <div id="message"></div>
 
-    <div id="game-container"></div>
+    <div id="board"></div>
 
     <div class="controls">
-        <button id="solve-button" onclick="triggerSolve()">Auto-Solve</button>
-        <div id="level-buttons"></div>
+        <button id="undo-button" onclick="undo()">Undo</button>
+        <button id="reset-button" onclick="resetPuzzle()">Reset</button>
+        <button id="hint-button" onclick="showHint()">Hint</button>
+        <button id="solve-button" onclick="autoSolve()">Auto-Solve</button>
     </div>
 
+    <details>
+        <summary>Play any puzzle from the database</summary>
+        <p>
+            Paste a 36-character board string, read row by row from the top left:
+            <code>o</code> is empty, <code>x</code> is a wall, <code>A</code> is the red car, and
+            <code>B</code>&ndash;<code>Z</code> are the other vehicles.
+        </p>
+        <div class="custom-row">
+            <input id="custom-input" type="text" maxlength="40" spellcheck="false" autocomplete="off"
+                   placeholder="e.g. IBBxooIooLDDJAALooJoKEEMFFKooMGGHHHM">
+            <button onclick="loadCustom()">Load</button>
+        </div>
+    </details>
+
+    <footer>
+        Puzzles are taken from Michael Fogleman's
+        <a href="https://www.michaelfogleman.com/rush/" target="_blank" rel="noopener">Rush Hour puzzle database</a>,
+        which lists every "interesting" 6&times;6 starting position (2,577,412 puzzles, up to two walls) together
+        with its optimal number of moves. The "Hardest" set contains the record puzzles from that database:
+        51 moves with no walls, and 60 moves with one wall. "The Classic" is this page's original level,
+        which turns out to be that 51-move record puzzle.
+        <br><a href="https://cloudallen.github.io/">&larr; Back to home</a>
+    </footer>
+
 <script>
-    // --- YOUR EXACT JAVASCRIPT CODE BELOW ---
-
-    const CELL_SIZE = 60;
     const GRID_SIZE = 6;
-    const container = document.getElementById('game-container');
-    const messageEl = document.getElementById('message');
-    const titleEl = document.getElementById('level-title');
-    const buttonContainer = document.getElementById('level-buttons');
-    const solveBtn = document.getElementById('solve-button');
+    const EXIT_POS = GRID_SIZE - 2;   // the red car wins when its left end reaches column 4
+    const STEP_MS = 400;              // auto-solve animation speed
 
-    // All levels have been mathematically verified to be 100% solvable.
-    const levelsData = [
-        {
-            name: "1. The Classic",
-            vehicles: [
-                { id: 'v1', x: 0, y: 0, len: 3, dir: 'v', color: '#ff69b4' },
-                { id: 'v2', x: 1, y: 0, len: 2, dir: 'h', color: '#f8cdda' },
-                { id: 'v3', x: 4, y: 0, len: 2, dir: 'v', color: '#d4e157' },
-                { id: 'v4', x: 1, y: 1, len: 2, dir: 'v', color: '#2ecc71' },
-                { id: 'v5', x: 2, y: 1, len: 2, dir: 'v', color: '#f5b041' },
-                { id: 'target', x: 3, y: 2, len: 2, dir: 'h', color: '#e74c3c', isTarget: true },
-                { id: 'v6', x: 5, y: 1, len: 3, dir: 'v', color: '#58d68d' },
-                { id: 'v7', x: 0, y: 3, len: 3, dir: 'h', color: '#9b59b6' },
-                { id: 'v8', x: 3, y: 3, len: 2, dir: 'v', color: '#3498db' },
-                { id: 'v9', x: 2, y: 4, len: 2, dir: 'v', color: '#f5cba7' },
-                { id: 'v10', x: 4, y: 4, len: 2, dir: 'h', color: '#f1948a' },
-                { id: 'v11', x: 0, y: 5, len: 2, dir: 'h', color: '#f1c40f' },
-                { id: 'v12', x: 3, y: 5, len: 2, dir: 'h', color: '#ecf0f1' }
-            ]
-        },
-        {
-            name: "2. TBD",
-            vehicles: [
-                { id: 'target', x: 0, y: 2, len: 2, dir: 'h', color: '#e74c3c', isTarget: true },
-                { id: 'v1', x: 2, y: 1, len: 3, dir: 'v', color: '#3498db' },
-                { id: 'v2', x: 2, y: 4, len: 2, dir: 'h', color: '#2ecc71' },
-                { id: 'v3', x: 4, y: 3, len: 2, dir: 'v', color: '#f1c40f' },
-                { id: 'v4', x: 0, y: 0, len: 2, dir: 'v', color: '#9b59b6' },
-                { id: 'v5', x: 1, y: 0, len: 2, dir: 'h', color: '#e67e22' },
-                { id: 'v6', x: 3, y: 0, len: 2, dir: 'v', color: '#1abc9c' },
-                { id: 'v7', x: 5, y: 0, len: 2, dir: 'v', color: '#f39c12' },
-                { id: 'v8', x: 0, y: 4, len: 2, dir: 'v', color: '#8e44ad' },
-                { id: 'v9', x: 1, y: 4, len: 2, dir: 'v', color: '#d35400' },
-                { id: 'v10', x: 4, y: 5, len: 2, dir: 'h', color: '#27ae60' }
-            ]
-        },
-        {
-            name: "3. TBD",
-            vehicles: [
-                { id: 'target', x: 0, y: 2, len: 2, dir: 'h', color: '#e74c3c', isTarget: true },
-                { id: 'v1', x: 2, y: 0, len: 3, dir: 'v', color: '#3498db' },
-                { id: 'v2', x: 1, y: 3, len: 2, dir: 'h', color: '#2ecc71' },
-                { id: 'v3', x: 0, y: 3, len: 2, dir: 'v', color: '#f1c40f' },
-                { id: 'v4', x: 0, y: 5, len: 2, dir: 'h', color: '#9b59b6' },
-                { id: 'v5', x: 3, y: 4, len: 2, dir: 'v', color: '#e67e22' },
-                { id: 'v6', x: 4, y: 4, len: 2, dir: 'v', color: '#1abc9c' },
-                { id: 'v7', x: 0, y: 0, len: 2, dir: 'h', color: '#f39c12' },
-                { id: 'v8', x: 3, y: 0, len: 3, dir: 'h', color: '#8e44ad' },
-                { id: 'v9', x: 5, y: 1, len: 2, dir: 'v', color: '#d35400' },
-                { id: 'v10', x: 3, y: 1, len: 2, dir: 'h', color: '#27ae60' }
-            ]
-        },
-        {
-            name: "4. TBD",
-            vehicles: [
-                { id: 'target', x: 2, y: 2, len: 2, dir: 'h', color: '#e74c3c', isTarget: true },
-                { id: 'v1', x: 4, y: 1, len: 3, dir: 'v', color: '#3498db' },
-                { id: 'v2', x: 3, y: 4, len: 2, dir: 'h', color: '#2ecc71' },
-                { id: 'v3', x: 2, y: 3, len: 2, dir: 'v', color: '#f1c40f' },
-                { id: 'v4', x: 0, y: 0, len: 2, dir: 'v', color: '#9b59b6' },
-                { id: 'v5', x: 1, y: 0, len: 2, dir: 'v', color: '#e67e22' },
-                { id: 'v6', x: 3, y: 0, len: 2, dir: 'h', color: '#1abc9c' },
-                { id: 'v7', x: 5, y: 0, len: 2, dir: 'v', color: '#f39c12' },
-                { id: 'v8', x: 0, y: 3, len: 2, dir: 'v', color: '#8e44ad' },
-                { id: 'v9', x: 1, y: 4, len: 2, dir: 'v', color: '#d35400' },
-                { id: 'v10', x: 2, y: 5, len: 2, dir: 'h', color: '#27ae60' },
-                { id: 'v11', x: 5, y: 3, len: 2, dir: 'v', color: '#ff9ff3' }
-            ]
-        },
-        {
-            name: "5. TBD",
-            vehicles: [
-                { id: 'target', x: 0, y: 2, len: 2, dir: 'h', color: '#e74c3c', isTarget: true },
-                { id: 'v1', x: 2, y: 0, len: 3, dir: 'v', color: '#3498db' },
-                { id: 'v2', x: 3, y: 1, len: 2, dir: 'v', color: '#2ecc71' },
-                { id: 'v3', x: 5, y: 0, len: 2, dir: 'v', color: '#f1c40f' },
-                { id: 'v4', x: 0, y: 4, len: 2, dir: 'v', color: '#9b59b6' },
-                { id: 'v5', x: 3, y: 3, len: 2, dir: 'v', color: '#e67e22' },
-                { id: 'v6', x: 1, y: 3, len: 2, dir: 'h', color: '#1abc9c' },
-                { id: 'v7', x: 4, y: 4, len: 2, dir: 'h', color: '#f39c12' },
-                { id: 'v8', x: 2, y: 5, len: 2, dir: 'h', color: '#8e44ad' }
-            ]
-        }
+    // Each puzzle is [board string, optimal number of moves], where one move slides one
+    // vehicle any distance. All entries except "The Classic" come from
+    // https://www.michaelfogleman.com/rush/, and every move count was re-verified with a
+    // breadth-first search.
+    const TIERS = [
+        { name: 'Beginner', puzzles: [
+            ['DooBBBDooFoGDAAFoGECCCoHEooooHoooooo', 6],
+            ['BBCCCoDDooKoAAooKoIJEEFFIJooooGGGHHo', 8],
+            ['oBBCCCooFoGHAAFoGHoDDoGIoooooIooEEEI', 8],
+            ['BBBooHoCCooHAAGoooFoGoooFDDDEEoooooo', 9],
+            ['ooooGHBBBoGHEAAoGHEoFoooooFCCCooDDDo', 10],
+            ['ooooooDoooFGDAAoFGBBBoFoooECCCooEooo', 10]
+        ]},
+        { name: 'Intermediate', puzzles: [
+            ['BBBCCoooHIDDAAHIoJoooooJEEEooJoFFFGG', 15],
+            ['BBCCooooGoooAAGoooFoGDDIFoooHIFEEEHI', 15],
+            ['DooHooDoFHoJAAFHoJooGBBBEoGoIoECCoIo', 15],
+            ['FBBCCoFoHoooAAHooJGoooIJGDDDIJGoooEE', 15],
+            ['BBBoIoooGoIoAAGoIoCCHoooFoHDDoFEEooo', 16],
+            ['BBooKLCCooKLoIAAKLHIoJDDHEEJFFooGGoo', 17]
+        ]},
+        { name: 'Advanced', puzzles: [
+            ['BBBHoooFoHIJoFAAIJoFCCIJooGoooDDGEEo', 25],
+            ['BBBoIJoCCoIJAAGooKoFGDDKoFHEEKooHooo', 25],
+            ['BBBoIJoFooIJoFAAIKoGHCCKoGHDDDEEEooo', 25],
+            ['oooooKBBBCCKEGAAJLEGHIJLFoHIJoFoHIDD', 25],
+            ['BBBCCLDDDJKLAAIJKMEEIFFMHGGoooHooooo', 26],
+            ['GoIoooGoIBBBAAJKooCCJKDDoHEEoLoHFFoL', 26]
+        ]},
+        { name: 'Expert', puzzles: [
+            ['BBKCCoJoKoMxJoAAMoEEoLxNGGoLoNHHHIIo', 38],
+            ['BBICCoDDIoKoHAAoKoHEEEKoHooJFFGGoJoo', 39],
+            ['BBoLoxIooLDDIAAMoooxKMFFJoKGGNJHHHoN', 39],
+            ['oKBBCCoKLoNxAALoNoJEEMxOJGGMoOHHIIIo', 40],
+            ['oooxMxIDDLMoIAALMNEEKooNoJKFFooJGGHH', 41],
+            ['IBBCCoIooLDDAAoLMNoJEEMNoJKoMxGGKHHo', 45]
+        ]},
+        { name: 'Hardest', puzzles: [
+            ['GBBoLoGHIoLMGHIAAMCCCKoMooJKDDEEJFFo', 51],
+            ['oxCCMoDDDKMoAAJKooooJLEEIFFLoNIGGoxN', 54],
+            ['ooBBMxDDDKMoAAJKoNooJEENIFFLooIGGLHH', 55],
+            ['ooBBMxDDDKMoAAJKoNooJEENIFFLooIGGLox', 55],
+            ['BBoKMxDDDKMoIAALooIoJLEEooJFFNoGGoxN', 58],
+            ['IBBxooIooLDDJAALooJoKEEMFFKooMGGHHHM', 60]
+        ]},
+        // The original hand-entered level. Same layout as Hardest #1, with different letters.
+        { name: 'The Classic', puzzles: [
+            ['BCCoDoBEFoDGBEFAAGHHHIoGooJIKKLLJMMo', 51]
+        ]}
     ];
 
-    let currentLevelIndex = 0;
-    let vehicles = [];
-    let isAnimating = false;
-    let cancelAnimation = false;
+    // Colors for B..Z (the red car A is always #e74c3c).
+    const PALETTE = [
+        '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c', '#ff69b4',
+        '#d4e157', '#f5b041', '#58d68d', '#a569bd', '#5dade2', '#f8cdda', '#f5cba7',
+        '#48c9b0', '#af7ac5', '#7fb3d5', '#f7dc6f', '#82e0aa', '#bb8fce', '#85c1e9',
+        '#f0b27a', '#76d7c4', '#d7bde2', '#aed6f1'
+    ];
 
-    for(let i=0; i<GRID_SIZE; i++){
-        for(let j=0; j<GRID_SIZE; j++){
-            let cell = document.createElement('div');
-            cell.className = 'grid-cell';
-            cell.style.left = (j * CELL_SIZE) + 'px';
-            cell.style.top = (i * CELL_SIZE) + 'px';
-            container.appendChild(cell);
+    const boardEl = document.getElementById('board');
+    const tabsEl = document.getElementById('tier-tabs');
+    const puzzleButtonsEl = document.getElementById('puzzle-buttons');
+    const titleEl = document.getElementById('level-title');
+    const messageEl = document.getElementById('message');
+    const moveCountEl = document.getElementById('move-count');
+    const optimalEl = document.getElementById('optimal-count');
+    const undoBtn = document.getElementById('undo-button');
+    const hintBtn = document.getElementById('hint-button');
+    const solveBtn = document.getElementById('solve-button');
+    const customInput = document.getElementById('custom-input');
+
+    // --- Game state ---
+    // pieces[0] is always the red car. Each piece: {id, horiz, len, fixed, pos, color, el}
+    // where `fixed` is its row (horizontal) or column (vertical) and `pos` is the other coordinate.
+    let pieces = [];
+    let walls = [];          // cell indices 0..35
+    let history = [];        // previous position arrays, for Undo; its length is the move count
+    let current = null;      // {board, optimal, tier, index}
+    let shownTier = 0;
+    let won = false;
+    let usedSolver = false;
+    let busy = false;        // true while the auto-solver is animating
+    let animToken = 0;       // bumped to cancel a running animation
+
+    let solvedSet = new Set();
+    try { solvedSet = new Set(JSON.parse(localStorage.getItem('rushHourSolved') || '[]')); } catch (e) {}
+
+    function saveSolved() {
+        try { localStorage.setItem('rushHourSolved', JSON.stringify([...solvedSet])); } catch (e) {}
+    }
+
+    // --- Board size: fit the board on narrow phone screens ---
+    function updateCellSize() {
+        let size = Math.floor((window.innerWidth - 48) / GRID_SIZE);
+        size = Math.max(40, Math.min(60, size));
+        document.documentElement.style.setProperty('--cell', size + 'px');
+    }
+    function cellPx() {
+        return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell'));
+    }
+    window.addEventListener('resize', updateCellSize);
+    updateCellSize();
+
+    // --- Parsing ---
+    function parseBoard(str) {
+        str = str.trim().replace(/\./g, 'o');
+        if (!/^[oxA-Z]{36}$/.test(str)) {
+            throw new Error('A board must be exactly 36 characters using o, x and A-Z.');
         }
-    }
+        let cells = {};
+        let wallCells = [];
+        for (let i = 0; i < 36; i++) {
+            let c = str[i];
+            if (c === 'x') wallCells.push(i);
+            else if (c !== 'o') (cells[c] = cells[c] || []).push(i);
+        }
+        if (!cells.A) throw new Error('The board has no red car (A).');
 
-    function setupButtons() {
-        levelsData.forEach((lvl, idx) => {
-            let btn = document.createElement('button');
-            btn.className = 'level-btn';
-            btn.innerText = lvl.name; 
-            btn.id = 'btn-level-' + idx;
-            btn.onclick = () => loadLevel(idx);
-            buttonContainer.appendChild(btn);
+        let result = Object.keys(cells).sort().map(id => {
+            let cs = cells[id];
+            let len = cs.length;
+            let row = Math.floor(cs[0] / 6), col = cs[0] % 6;
+            let horiz = cs.every((c, k) => c === cs[0] + k && Math.floor(c / 6) === row);
+            let vert = cs.every((c, k) => c === cs[0] + 6 * k);
+            if (len < 2 || len > 3 || (!horiz && !vert)) {
+                throw new Error(`Vehicle ${id} must be a straight line of 2 or 3 cells.`);
+            }
+            return {
+                id, horiz, len,
+                fixed: horiz ? row : col,
+                pos: horiz ? col : row,
+                color: id === 'A' ? '#e74c3c' : PALETTE[(id.charCodeAt(0) - 66) % PALETTE.length]
+            };
         });
+        let red = result[0];
+        if (!red.horiz || red.fixed !== 2 || red.len !== 2) {
+            throw new Error('The red car (A) must be a horizontal car on the third row.');
+        }
+        return { pieces: result, walls: wallCells, board: str };
     }
 
-    function loadLevel(index) {
-        cancelAnimation = true;
-        isAnimating = false;
-        currentLevelIndex = index;
-        solveBtn.disabled = false;
-        
-        document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('btn-level-' + index).classList.add('active');
-        
-        messageEl.innerText = "";
-        messageEl.style.color = "#2ecc71";
-        
-        titleEl.innerText = "Playing: " + levelsData[index].name;
-        vehicles = JSON.parse(JSON.stringify(levelsData[index].vehicles));
-        render();
+    // --- Geometry shared by dragging and the solver ---
+    function cellIndex(p, k) {
+        return p.horiz ? p.fixed * 6 + k : k * 6 + p.fixed;
+    }
+
+    function positions() {
+        return pieces.map(p => p.pos);
+    }
+
+    function occupancy(pos) {
+        let occ = new Uint8Array(36);
+        walls.forEach(w => occ[w] = 1);
+        pieces.forEach((p, i) => {
+            for (let k = 0; k < p.len; k++) occ[cellIndex(p, pos[i] + k)] = 1;
+        });
+        return occ;
+    }
+
+    // Range of positions piece i can slide to, given the occupancy grid of `pos`.
+    function slideRange(i, pos, occ) {
+        let p = pieces[i];
+        let min = pos[i], max = pos[i];
+        while (min > 0 && !occ[cellIndex(p, min - 1)]) min--;
+        while (max + p.len < GRID_SIZE && !occ[cellIndex(p, max + p.len)]) max++;
+        return [min, max];
+    }
+
+    // Breadth-first search from `start` (an array of positions). Returns the list of
+    // states after each move of an optimal solution, or null if there is none.
+    function solveFrom(start) {
+        if (start[0] === EXIT_POS) return [];
+        let key = s => String.fromCharCode(...s);
+        let parent = new Map([[key(start), null]]);
+        let frontier = [start];
+        while (frontier.length) {
+            let next = [];
+            for (let s of frontier) {
+                let occ = occupancy(s);
+                for (let i = 0; i < pieces.length; i++) {
+                    let [min, max] = slideRange(i, s, occ);
+                    for (let np = min; np <= max; np++) {
+                        if (np === s[i]) continue;
+                        let ns = s.slice();
+                        ns[i] = np;
+                        let k = key(ns);
+                        if (parent.has(k)) continue;
+                        parent.set(k, s);
+                        if (i === 0 && np === EXIT_POS) {
+                            let path = [];
+                            for (let st = ns; st !== start; st = parent.get(key(st))) path.unshift(st);
+                            return path;
+                        }
+                        next.push(ns);
+                    }
+                }
+            }
+            frontier = next;
+        }
+        return null;
+    }
+
+    // --- Rendering ---
+    function placePiece(p, pos = p.pos) {
+        let x = p.horiz ? pos : p.fixed;
+        let y = p.horiz ? p.fixed : pos;
+        p.el.style.left = `calc(var(--cell) * ${x} + 2px)`;
+        p.el.style.top = `calc(var(--cell) * ${y} + 2px)`;
     }
 
     function render() {
-        document.querySelectorAll('.vehicle').forEach(el => el.remove());
-
-        vehicles.forEach((v, index) => {
+        boardEl.innerHTML = '';
+        walls.forEach(w => {
             let el = document.createElement('div');
-            el.id = v.id; 
-            el.className = 'vehicle' + (v.isTarget ? ' target-car' : '');
-            el.style.backgroundColor = v.color;
-            
-            if (v.dir === 'h') {
-                el.style.width = (v.len * CELL_SIZE - 4) + 'px';
-                el.style.height = (CELL_SIZE - 4) + 'px';
-            } else {
-                el.style.width = (CELL_SIZE - 4) + 'px';
-                el.style.height = (v.len * CELL_SIZE - 4) + 'px';
-            }
-            
-            updateElementPosition(el, v.x, v.y);
-            el.onpointerdown = (e) => startDrag(e, v, el, index);
-            container.appendChild(el);
+            el.className = 'wall';
+            el.style.left = `calc(var(--cell) * ${w % 6} + 2px)`;
+            el.style.top = `calc(var(--cell) * ${Math.floor(w / 6)} + 2px)`;
+            boardEl.appendChild(el);
+        });
+        pieces.forEach((p, i) => {
+            let el = document.createElement('div');
+            el.className = 'vehicle' + (i === 0 ? ' target-car' : '');
+            el.style.backgroundColor = p.color;
+            let along = `calc(var(--cell) * ${p.len} - 4px)`;
+            let across = 'calc(var(--cell) - 4px)';
+            el.style.width = p.horiz ? along : across;
+            el.style.height = p.horiz ? across : along;
+            el.onpointerdown = (e) => startDrag(e, i);
+            p.el = el;
+            placePiece(p);
+            boardEl.appendChild(el);
         });
     }
 
-    function updateElementPosition(el, x, y) {
-        el.style.left = (x * CELL_SIZE + 2) + 'px';
-        el.style.top = (y * CELL_SIZE + 2) + 'px';
+    function setPositions(pos) {
+        pieces.forEach((p, i) => { p.pos = pos[i]; placePiece(p); });
     }
 
-    function getOccupiedGrid(state = vehicles) {
-        let grid = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(false));
-        state.forEach(v => {
-            for (let i = 0; i < v.len; i++) {
-                if (v.dir === 'h') grid[v.y][v.x + i] = true;
-                if (v.dir === 'v') grid[v.y + i][v.x] = true;
-            }
+    function updateStatus() {
+        moveCountEl.innerText = history.length;
+        optimalEl.innerText = current.optimal;
+        undoBtn.disabled = busy || won || history.length === 0;
+        hintBtn.disabled = busy || won;
+        solveBtn.disabled = busy || won;
+    }
+
+    function setMessage(text, color = '#ecf0f1') {
+        messageEl.innerText = text;
+        messageEl.style.color = color;
+    }
+
+    // --- Puzzle picker ---
+    function showTier(t) {
+        shownTier = t;
+        tabsEl.querySelectorAll('button').forEach((b, i) => b.classList.toggle('active', i === t));
+        puzzleButtonsEl.innerHTML = '';
+        TIERS[t].puzzles.forEach(([board, moves], i) => {
+            let btn = document.createElement('button');
+            btn.className = 'puzzle-btn';
+            btn.innerHTML = `#${i + 1}<small>${moves} moves</small>`;
+            btn.classList.toggle('solved', solvedSet.has(board));
+            btn.classList.toggle('active', !!current && current.tier === t && current.index === i);
+            btn.onclick = () => loadPuzzle(board, moves, t, i);
+            puzzleButtonsEl.appendChild(btn);
         });
-        return grid;
     }
 
-    function startDrag(e, vehicle, el, index) {
-        if (isAnimating) return;
+    function setupTabs() {
+        TIERS.forEach((tier, t) => {
+            let btn = document.createElement('button');
+            btn.innerText = tier.name;
+            btn.onclick = () => showTier(t);
+            tabsEl.appendChild(btn);
+        });
+    }
+
+    // --- Loading ---
+    function loadParsed(parsed, optimal, tier, index) {
+        animToken++;
+        busy = false;
+        won = false;
+        usedSolver = false;
+        history = [];
+        pieces = parsed.pieces;
+        walls = parsed.walls;
+        current = { board: parsed.board, optimal, tier, index };
+        titleEl.innerText = tier === null ? 'Custom puzzle'
+            : TIERS[tier].puzzles.length === 1 ? TIERS[tier].name
+            : `${TIERS[tier].name} #${index + 1}`;
+        setMessage('');
+        render();
+        updateStatus();
+        if (tier !== null) showTier(tier);
+        else puzzleButtonsEl.querySelectorAll('.puzzle-btn').forEach(b => b.classList.remove('active'));
+        setHash(parsed.board);
+    }
+
+    function setHash(board) {
+        try { window.history.replaceState(null, '', '#' + board); } catch (e) {}
+    }
+
+    function loadPuzzle(board, optimal, tier, index) {
+        loadParsed(parseBoard(board), optimal, tier, index);
+    }
+
+    function findInCatalog(board) {
+        for (let t = 0; t < TIERS.length; t++) {
+            let i = TIERS[t].puzzles.findIndex(p => p[0] === board);
+            if (i >= 0) return [t, i];
+        }
+        return null;
+    }
+
+    // Loads a board string from the custom box or the URL hash. Returns true on success.
+    function loadBoardString(str) {
+        let parsed;
+        try { parsed = parseBoard(str); }
+        catch (e) { setMessage(e.message, '#e74c3c'); return false; }
+
+        let found = findInCatalog(parsed.board);
+        if (found) {
+            let [t, i] = found;
+            loadPuzzle(parsed.board, TIERS[t].puzzles[i][1], t, i);
+            return true;
+        }
+        // Compute the optimal move count with the same solver, using the new pieces.
+        let saved = [pieces, walls];
+        pieces = parsed.pieces;
+        walls = parsed.walls;
+        let path = solveFrom(positions());
+        [pieces, walls] = saved;
+        if (!path) { setMessage('That puzzle has no solution.', '#e74c3c'); return false; }
+        if (path.length === 0) { setMessage('That puzzle is already solved.', '#e74c3c'); return false; }
+        loadParsed(parsed, path.length, null, null);
+        return true;
+    }
+
+    function loadCustom() {
+        loadBoardString(customInput.value);
+    }
+    customInput.addEventListener('keydown', e => { if (e.key === 'Enter') loadCustom(); });
+
+    function resetPuzzle() {
+        if (current) loadPuzzle(current.board, current.optimal, current.tier, current.index);
+    }
+
+    // --- Moves ---
+    function clearHint() {
+        boardEl.querySelectorAll('.ghost').forEach(g => g.remove());
+        pieces.forEach(p => p.el.classList.remove('hint'));
+    }
+
+    function commitMove(prev) {
+        history.push(prev);
+        updateStatus();
+        checkWin();
+    }
+
+    function undo() {
+        if (busy || won || history.length === 0) return;
+        clearHint();
+        setPositions(history.pop());
+        setMessage('');
+        updateStatus();
+    }
+
+    function startDrag(e, i) {
+        if (busy || won) return;
         e.preventDefault();
-        
-        let target = vehicles.find(v => v.isTarget);
-        if (target.x >= GRID_SIZE - target.len + 1) return;
+        clearHint();
 
-        let startX = e.clientX;
-        let startY = e.clientY;
-        
-        let grid = getOccupiedGrid();
-        for (let i = 0; i < vehicle.len; i++) {
-            if (vehicle.dir === 'h') grid[vehicle.y][vehicle.x + i] = false;
-            if (vehicle.dir === 'v') grid[vehicle.y + i][vehicle.x] = false;
-        }
-
-        let minBound = 0, maxBound = 0;
-        if (vehicle.dir === 'h') {
-            let x = vehicle.x; while (x > 0 && !grid[vehicle.y][x - 1]) x--; minBound = x;
-            x = vehicle.x; let limit = vehicle.isTarget ? GRID_SIZE : GRID_SIZE - vehicle.len;
-            while (x < limit && !grid[vehicle.y][x + vehicle.len]) x++; maxBound = x;
-        } else {
-            let y = vehicle.y; while (y > 0 && !grid[y - 1][vehicle.x]) y--; minBound = y;
-            y = vehicle.y; while (y < GRID_SIZE - vehicle.len && !grid[y + vehicle.len][vehicle.x]) y++; maxBound = y;
-        }
-
-        let currentPos = vehicle.dir === 'h' ? vehicle.x : vehicle.y;
+        let p = pieces[i];
+        let before = positions();
+        let [min, max] = slideRange(i, before, occupancy(before));
+        let startCoord = p.horiz ? e.clientX : e.clientY;
+        let startPos = p.pos;
+        let cell = cellPx();
+        p.el.classList.add('dragging');
 
         function onPointerMove(ev) {
-            let dx = ev.clientX - startX;
-            let dy = ev.clientY - startY;
-            let cellsMoved = vehicle.dir === 'h' ? Math.round(dx / CELL_SIZE) : Math.round(dy / CELL_SIZE);
-            let newPos = currentPos + cellsMoved;
-            
-            newPos = Math.max(minBound, Math.min(newPos, maxBound));
-
-            if (vehicle.dir === 'h') vehicle.x = newPos;
-            else vehicle.y = newPos;
-            
-            updateElementPosition(el, vehicle.x, vehicle.y);
+            let delta = (p.horiz ? ev.clientX : ev.clientY) - startCoord;
+            let newPos = Math.max(min, Math.min(startPos + Math.round(delta / cell), max));
+            if (newPos !== p.pos) { p.pos = newPos; placePiece(p); }
         }
 
         function onPointerUp() {
             document.removeEventListener('pointermove', onPointerMove);
             document.removeEventListener('pointerup', onPointerUp);
-            vehicles.forEach(v => updateElementPosition(document.getElementById(v.id), v.x, v.y)); 
-            checkWin();
+            document.removeEventListener('pointercancel', onPointerUp);
+            p.el.classList.remove('dragging');
+            if (p.pos !== startPos) commitMove(before);
         }
 
         document.addEventListener('pointermove', onPointerMove);
         document.addEventListener('pointerup', onPointerUp);
+        document.addEventListener('pointercancel', onPointerUp);
     }
 
     function checkWin() {
-        let target = vehicles.find(v => v.isTarget);
-        if (target.x >= GRID_SIZE - target.len + 1) {
-            messageEl.innerText = "You Escaped!";
-            messageEl.style.color = "#2ecc71";
-            solveBtn.disabled = true;
+        let red = pieces[0];
+        if (red.pos !== EXIT_POS) return;
+        won = true;
+        clearHint();
+        red.el.classList.add('exiting');
+        placePiece(red, GRID_SIZE + 1);   // drive off the board
+
+        let n = history.length;
+        if (usedSolver) {
+            setMessage(`Solved in ${n} moves by the auto-solver.`, '#f1c40f');
+        } else {
+            solvedSet.add(current.board);
+            saveSolved();
+            if (current.tier !== null && current.tier === shownTier) showTier(shownTier);
+            setMessage(n <= current.optimal
+                ? `You escaped in ${n} moves. That's optimal!`
+                : `You escaped in ${n} moves! (Optimal: ${current.optimal})`, '#2ecc71');
         }
+        updateStatus();
     }
 
-    async function triggerSolve() {
-        if (isAnimating) return;
-        
-        let target = vehicles.find(v => v.isTarget);
-        if (target.x >= GRID_SIZE - target.len) return;
+    // --- Solver UI ---
+    // Runs fn on the next tick so the "thinking" message gets painted first.
+    function afterPaint(fn) { setTimeout(fn, 30); }
 
-        messageEl.style.color = "#f1c40f";
-        messageEl.innerText = "Calculating path...";
-        solveBtn.disabled = true;
-        
-        setTimeout(async () => {
-            let solutionPath = findSolution(vehicles);
-            
-            if (!solutionPath) {
-                messageEl.innerText = "No solution found!";
-                messageEl.style.color = "#e74c3c";
-                solveBtn.disabled = false;
+    function showHint() {
+        if (busy || won) return;
+        clearHint();
+        setMessage('Thinking...', '#f1c40f');
+        let token = animToken;
+        afterPaint(() => {
+            if (token !== animToken) return;
+            let path = solveFrom(positions());
+            if (!path) { setMessage('No solution from here. Try Undo or Reset.', '#e74c3c'); return; }
+            let next = path[0];
+            let i = next.findIndex((v, k) => v !== pieces[k].pos);
+            let p = pieces[i];
+            p.el.classList.add('hint');
+
+            let ghost = document.createElement('div');
+            ghost.className = 'ghost';
+            ghost.style.width = p.el.style.width;
+            ghost.style.height = p.el.style.height;
+            let x = p.horiz ? next[i] : p.fixed, y = p.horiz ? p.fixed : next[i];
+            ghost.style.left = `calc(var(--cell) * ${x} + 2px)`;
+            ghost.style.top = `calc(var(--cell) * ${y} + 2px)`;
+            boardEl.appendChild(ghost);
+
+            setMessage(`Move the highlighted vehicle to the dashed outline. ${path.length} moves to go from here.`, '#f1c40f');
+        });
+    }
+
+    function autoSolve() {
+        if (busy || won) return;
+        clearHint();
+        busy = true;
+        updateStatus();
+        setMessage('Calculating path...', '#f1c40f');
+        let token = ++animToken;
+        afterPaint(async () => {
+            if (token !== animToken) return;
+            let path = solveFrom(positions());
+            if (!path) {
+                busy = false;
+                updateStatus();
+                setMessage('No solution found!', '#e74c3c');
                 return;
             }
-            
-            messageEl.innerText = "Solving...";
-            await animateSolution(solutionPath);
-        }, 50);
-    }
-
-    function findSolution(startState) {
-        let queue = [{ state: JSON.parse(JSON.stringify(startState)), moves: [] }];
-        let visited = new Set();
-        
-        function encode(s) { return s.map(v => `${v.x},${v.y}`).join('|'); }
-        visited.add(encode(queue[0].state));
-        
-        let iterations = 0;
-        let maxIterations = 40000; // Increased buffer for Level 5's depth
-
-        while(queue.length > 0 && iterations < maxIterations) {
-            iterations++;
-            let current = queue.shift();
-            
-            let target = current.state.find(v => v.isTarget);
-            if (target.x >= GRID_SIZE - target.len) {
-                return current.moves; 
+            usedSolver = true;
+            setMessage(`Solving: ${path.length} moves...`, '#f1c40f');
+            for (let state of path) {
+                if (token !== animToken) return;
+                history.push(positions());
+                setPositions(state);
+                moveCountEl.innerText = history.length;
+                await new Promise(resolve => setTimeout(resolve, STEP_MS));
             }
-            
-            let grid = getOccupiedGrid(current.state);
-            
-            for(let i=0; i < current.state.length; i++) {
-                let v = current.state[i];
-                
-                for(let j=0; j<v.len; j++) {
-                    if(v.dir === 'h') grid[v.y][v.x+j] = false;
-                    if(v.dir === 'v') grid[v.y+j][v.x] = false;
-                }
-                
-                let min = 0, max = 0;
-                if (v.dir === 'h') {
-                    let x = v.x; while(x>0 && !grid[v.y][x-1]) x--; min = x;
-                    x = v.x; let lim = v.isTarget ? GRID_SIZE : GRID_SIZE-v.len;
-                    while(x<lim && !grid[v.y][x+v.len]) x++; max = x;
-                } else {
-                    let y = v.y; while(y>0 && !grid[y-1][v.x]) y--; min = y;
-                    y = v.y; while(y<GRID_SIZE-v.len && !grid[y+v.len][v.x]) y++; max = y;
-                }
-                
-                let currentPos = v.dir === 'h' ? v.x : v.y;
-                
-                for(let pos = min; pos <= max; pos++) {
-                    if(pos === currentPos) continue;
-                    
-                    let newState = JSON.parse(JSON.stringify(current.state));
-                    if(newState[i].dir === 'h') newState[i].x = pos;
-                    else newState[i].y = pos;
-                    
-                    let enc = encode(newState);
-                    if(!visited.has(enc)) {
-                        visited.add(enc);
-                        queue.push({ state: newState, moves: [...current.moves, newState] });
-                    }
-                }
-                
-                for(let j=0; j<v.len; j++) {
-                    if(v.dir === 'h') grid[v.y][v.x+j] = true;
-                    if(v.dir === 'v') grid[v.y+j][v.x] = true;
-                }
-            }
-        }
-        return null; // Will only hit this if you drag into a deadlock, then hit solve.
-    }
-
-    async function animateSolution(path) {
-        isAnimating = true;
-        cancelAnimation = false;
-
-        for (let step = 0; step < path.length; step++) {
-            if (cancelAnimation) break; 
-
-            vehicles = path[step];
-            vehicles.forEach(v => {
-                let el = document.getElementById(v.id);
-                if (el) updateElementPosition(el, v.x, v.y);
-            });
-            
-            await new Promise(resolve => setTimeout(resolve, 300)); 
-        }
-
-        if (!cancelAnimation) {
+            if (token !== animToken) return;
+            busy = false;
             checkWin();
-        }
-        isAnimating = false;
+        });
     }
 
-    setupButtons();
-    loadLevel(0);
+    // --- Start ---
+    setupTabs();
+    let fromHash = decodeURIComponent(location.hash.slice(1));
+    if (!(fromHash && loadBoardString(fromHash))) {
+        let [board, moves] = TIERS[0].puzzles[0];
+        loadPuzzle(board, moves, 0, 0);
+    }
 </script>
 </body>
 </html>
