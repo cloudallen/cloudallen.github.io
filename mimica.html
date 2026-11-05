@@ -1,0 +1,4458 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mímica e Desenho</title>
+    <meta name="description" content="Sorteie palavras para jogar mímica ou desenho. Draw random words for mime and drawing games.">
+    <style>
+        :root {
+            --felt: #12493a;
+            --felt-dark: #0a2a20;
+            --ink: #07170f;
+            --panel: rgba(255, 255, 255, 0.06);
+            --panel-border: rgba(255, 255, 255, 0.12);
+            --text: #eef4ef;
+            --muted: #a9c2b6;
+            --gold: #f5b942;
+            --gold-dark: #d99a1e;
+            --red: #e05d5d;
+            --teal: #2bb3a3;
+            --purple: #8e6cdf;
+            --blue: #4f8fe6;
+            --orange: #f08a3c;
+            --radius: 16px;
+        }
+        * { box-sizing: border-box; }
+        [hidden] { display: none !important; }
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 1px 1px, rgba(255,255,255,0.035) 1px, transparent 0) 0 0 / 6px 6px,
+                radial-gradient(ellipse at top, #18604a 0%, var(--felt) 35%, var(--felt-dark) 75%, #061a13 100%) fixed;
+            background-color: var(--felt-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        body:has(dialog[open]) { overflow: hidden; }
+        a { color: var(--gold); }
+        svg.icon { width: 1.2em; height: 1.2em; }
+
+        /* ---------- Top bar ---------- */
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 24px;
+            background: rgba(6, 26, 19, 0.82);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--panel-border);
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-right: auto;
+            font-weight: 700;
+            color: var(--text);
+            white-space: nowrap;
+        }
+        .brand svg { width: 26px; height: 26px; color: var(--gold); }
+        .lang-toggle, .seg {
+            display: flex;
+            border: 1px solid var(--panel-border);
+            border-radius: 999px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .lang-toggle button, .seg button {
+            background: transparent;
+            color: var(--muted);
+            border: 0;
+            padding: 6px 12px;
+            font: inherit;
+            font-weight: 600;
+            font-size: 0.85em;
+            cursor: pointer;
+        }
+        .lang-toggle button[aria-pressed="true"], .seg button[aria-pressed="true"] { background: var(--gold); color: var(--ink); }
+        .seg button { padding: 9px 18px; font-size: 0.95em; }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 22px;
+            border-radius: 999px;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: transform 0.15s, background 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); }
+        .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .btn.primary {
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            color: var(--ink);
+            box-shadow: 0 8px 20px rgba(245, 185, 66, 0.3);
+        }
+        .btn.ghost { background: var(--panel); color: var(--text); border-color: var(--panel-border); }
+        .btn.ghost:hover { background: rgba(255,255,255,0.12); }
+        .btn.small { padding: 7px 16px; font-size: 0.9em; }
+
+        /* ---------- Controls ---------- */
+        main { flex: 1; width: 100%; max-width: 1100px; margin: 0 auto; padding: 40px 24px 56px; }
+        .intro { text-align: center; }
+        .intro h1 {
+            margin: 0;
+            font-size: clamp(2.1em, 7vw, 3.2em);
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+            background: linear-gradient(120deg, #fff 10%, var(--gold) 55%, var(--orange) 95%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .intro p { margin: 10px 0 0; color: var(--muted); }
+        .controls { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: 28px; }
+        .draw-btn { min-width: 220px; padding: 14px 44px; font-size: 1.25em; }
+        .status { margin: 0; color: var(--muted); font-size: 0.92em; text-align: center; }
+        .status.warn { color: var(--gold); }
+
+        /* ---------- Timer ---------- */
+        .timer {
+            position: sticky;
+            top: 68px;
+            z-index: 40;
+            max-width: 420px;
+            margin: 24px auto 0;
+            padding: 12px 20px 16px;
+            background: #0f2c22;
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius);
+            box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+        }
+        .timer-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 60px; }
+        .timer-time { font-size: 2.6em; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+        .timer-bar { height: 8px; margin-top: 8px; overflow: hidden; border-radius: 4px; background: rgba(255,255,255,0.12); }
+        .timer-bar i { display: block; height: 100%; border-radius: 4px; background: var(--gold); transition: width 0.1s linear; }
+        .timer.warn { border-color: var(--red); }
+        .timer.warn .timer-time { color: var(--red); animation: pulse 1s ease-in-out infinite; }
+        .timer.warn .timer-bar i { background: var(--red); }
+        .timer.done { border-color: var(--red); background: #4a1c1c; }
+        .timer.done .timer-time { font-size: 1.8em; }
+        @keyframes pulse {
+            50% { opacity: 0.55; }
+        }
+
+        /* ---------- Word cards ---------- */
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius);
+        }
+        .results { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; margin-top: 32px; }
+        .hint { margin: 0; padding: 28px 12px; color: var(--muted); font-style: italic; text-align: center; }
+        .word-card {
+            flex: 1 1 260px;
+            max-width: 340px;
+            min-width: 0;
+            padding: 18px 20px 22px;
+            border-top: 4px solid var(--c);
+        }
+        .word-card.deal { animation: deal 0.32s ease-out backwards; animation-delay: calc(var(--i) * 60ms); }
+        @keyframes deal {
+            from { opacity: 0; transform: translateY(14px) scale(0.97); }
+        }
+        .word-cat { display: flex; align-items: center; gap: 10px; }
+        .word-icon {
+            flex-shrink: 0;
+            display: grid;
+            place-items: center;
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: var(--ink);
+            border: 2px solid var(--c);
+            font-size: 1.3em;
+            line-height: 1;
+        }
+        .word-cat-name {
+            min-width: 0;
+            font-size: 0.75em;
+            font-weight: 600;
+            line-height: 1.3;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+        }
+        .word-main { margin-top: 14px; font-size: 1.65em; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+        .word-alt { margin-top: 4px; font-size: 1.15em; line-height: 1.25; color: var(--gold); overflow-wrap: anywhere; }
+
+        /* ---------- Settings ---------- */
+        dialog {
+            border: 0;
+            padding: 0;
+            background: transparent;
+            color: var(--text);
+            max-width: min(720px, calc(100vw - 24px));
+            width: 100%;
+        }
+        dialog::backdrop { background: rgba(3, 12, 8, 0.78); backdrop-filter: blur(4px); }
+        .modal-inner {
+            position: relative;
+            max-height: calc(100vh - 48px);
+            max-height: calc(100dvh - 48px);
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            padding: 26px 28px 28px;
+            background: #0f2c22;
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+        }
+        .modal-inner:focus { outline: none; }
+        .modal-inner h2 { margin: 0; padding-right: 44px; font-size: 1.6em; line-height: 1.25; }
+        .close-btn {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            z-index: 2;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: 0;
+            background: rgba(0,0,0,0.4);
+            color: #fff;
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .close-btn:hover { background: rgba(0,0,0,0.6); }
+        .setting { margin-top: 22px; }
+        .setting h3 {
+            margin: 0 0 10px;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--gold);
+        }
+        .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+        .chip {
+            padding: 8px 15px;
+            border-radius: 999px;
+            border: 1px solid var(--panel-border);
+            background: var(--panel);
+            color: var(--text);
+            font: inherit;
+            font-weight: 600;
+            font-size: 0.92em;
+            cursor: pointer;
+        }
+        .chip:hover { background: rgba(255,255,255,0.12); }
+        .chip[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--ink); }
+        .summary { margin: 12px 0 0; color: var(--muted); font-size: 0.9em; }
+        .preset-cats { margin: 6px 0 0; color: var(--muted); font-size: 0.82em; }
+        .custom-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+        .cat-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px; margin-top: 12px; }
+        .cat-check {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            min-height: 44px;
+            padding: 6px 12px;
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            background: var(--panel);
+            font-size: 0.82em;
+            font-weight: 600;
+            line-height: 1.25;
+            cursor: pointer;
+        }
+        .cat-check:has(input:checked) { border-color: var(--gold); }
+        .cat-check input { flex-shrink: 0; width: 18px; height: 18px; margin: 0; accent-color: var(--gold); }
+        .cat-check .emoji { font-size: 1.3em; line-height: 1; }
+        .cat-check .count { margin-left: auto; color: var(--muted); font-weight: 400; }
+        .stepper { display: inline-flex; align-items: center; gap: 8px; }
+        .stepper button {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 1px solid var(--panel-border);
+            background: var(--panel);
+            color: var(--text);
+            font: inherit;
+            font-size: 1.3em;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .stepper button:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
+        .stepper button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .stepper input {
+            width: 72px;
+            height: 44px;
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            background: var(--ink);
+            color: var(--text);
+            font: inherit;
+            font-size: 1.15em;
+            font-weight: 700;
+            text-align: center;
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+        .stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .timer-toggle { display: inline-flex; font-size: 0.92em; }
+        #timer-box .summary { margin: 12px 0 8px; }
+        .modal-actions { display: flex; justify-content: flex-end; margin-top: 26px; }
+
+        /* ---------- Footer ---------- */
+        footer {
+            text-align: center;
+            padding: 24px 24px 32px;
+            color: var(--muted);
+            border-top: 1px solid var(--panel-border);
+            font-size: 0.92em;
+        }
+        footer a { margin: 0 8px; }
+
+        @media (max-width: 640px) {
+            .topbar { padding: 8px 12px; gap: 8px; }
+            .settings-label { display: none; }
+            #settings-btn { padding: 7px 10px; }
+            main { padding: 28px 16px 44px; }
+            .word-card { flex-basis: 100%; max-width: none; }
+            .word-main { font-size: 1.5em; }
+            .modal-inner { padding: 22px 18px 22px; }
+            .cat-list { grid-template-columns: 1fr; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation: none !important; transition: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="topbar">
+    <div class="brand">
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+            <rect x="4" y="4" width="56" height="56" rx="13" fill="currentColor"/>
+            <g fill="#07170f"><circle cx="20" cy="20" r="5"/><circle cx="44" cy="20" r="5"/><circle cx="32" cy="32" r="5"/><circle cx="20" cy="44" r="5"/><circle cx="44" cy="44" r="5"/></g>
+        </svg>
+        <span data-i18n="brand"></span>
+    </div>
+    <button class="btn ghost small" type="button" id="settings-btn">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        <span class="settings-label" data-i18n="settings"></span>
+    </button>
+    <div class="lang-toggle" role="group" aria-label="Idioma / Language">
+        <button type="button" data-lang="pt" aria-pressed="true">PT</button>
+        <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+</nav>
+
+<main>
+    <div class="intro">
+        <h1 data-i18n="title"></h1>
+        <p data-i18n="lead"></p>
+    </div>
+
+    <div class="controls">
+        <div class="seg" role="group" id="word-lang">
+            <button type="button" data-word-lang="en">English</button>
+            <button type="button" data-word-lang="pt">Português</button>
+            <button type="button" data-word-lang="both" data-i18n="both"></button>
+        </div>
+        <button class="btn primary draw-btn" type="button" id="draw-btn" data-i18n="draw"></button>
+        <p class="status" id="status"></p>
+    </div>
+
+    <div class="timer" id="timer" hidden>
+        <div class="timer-row">
+            <div class="timer-time" id="timer-time" role="timer"></div>
+            <button class="btn ghost small" type="button" id="timer-stop" data-i18n="timer_stop"></button>
+        </div>
+        <div class="timer-bar"><i id="timer-fill"></i></div>
+    </div>
+
+    <div class="results" id="results" aria-live="polite"></div>
+</main>
+
+<footer>
+    <a href="gamenight.html" data-i18n="footer_gamenight"></a>
+    <a href="index.html" data-i18n="footer_home"></a>
+</footer>
+
+<dialog id="settings" aria-labelledby="settings-title">
+    <div class="modal-inner">
+        <button class="close-btn" type="button" data-close>&times;</button>
+        <h2 id="settings-title" data-i18n="settings"></h2>
+
+        <div class="setting">
+            <h3 data-i18n="categories"></h3>
+            <div class="chips" id="preset-chips"></div>
+            <p class="summary" id="summary"></p>
+            <p class="preset-cats" id="preset-cats"></p>
+            <div id="custom-box">
+                <div class="custom-actions">
+                    <button class="btn ghost small" type="button" id="select-all" data-i18n="select_all"></button>
+                    <button class="btn ghost small" type="button" id="select-none" data-i18n="select_none"></button>
+                </div>
+                <div class="cat-list" id="cat-list"></div>
+            </div>
+        </div>
+
+        <div class="setting">
+            <h3 id="count-label" data-i18n="per_draw"></h3>
+            <div class="stepper">
+                <button type="button" id="count-down">&minus;</button>
+                <input type="number" id="count" inputmode="numeric" aria-labelledby="count-label">
+                <button type="button" id="count-up">+</button>
+            </div>
+        </div>
+
+        <div class="setting">
+            <h3 data-i18n="timer"></h3>
+            <label class="cat-check timer-toggle"><input type="checkbox" id="timer-on"><span data-i18n="timer_use"></span></label>
+            <div id="timer-box">
+                <p class="summary" id="timer-label" data-i18n="timer_seconds"></p>
+                <div class="stepper">
+                    <button type="button" id="timer-down">&minus;</button>
+                    <input type="number" id="timer-seconds" inputmode="numeric" aria-labelledby="timer-label">
+                    <button type="button" id="timer-up">+</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn primary" type="button" data-close data-i18n="done"></button>
+        </div>
+    </div>
+</dialog>
+
+<!-- The word list: a copy of mimic_words_EN_PT.txt. To update it, paste the new file here. -->
+<script type="text/plain" id="words">
+MIMIC / DRAWING GAME WORDS — MÍMICA / DESENHO
+Format: English | Português
+
+
+==================================================
+CITY, STATE, COUNTRY | CIDADE, ESTADO, PAÍS  (123)
+==================================================
+Brazil | Brasil
+Argentina | Argentina
+United States | Estados Unidos
+Canada | Canadá
+Mexico | México
+Japan | Japão
+China | China
+India | Índia
+Russia | Rússia
+France | França
+Germany | Alemanha
+Italy | Itália
+Spain | Espanha
+Portugal | Portugal
+England | Inglaterra
+Ireland | Irlanda
+Scotland | Escócia
+Egypt | Egito
+South Africa | África do Sul
+Australia | Austrália
+New Zealand | Nova Zelândia
+Greece | Grécia
+Turkey | Turquia
+Netherlands | Holanda
+Switzerland | Suíça
+Sweden | Suécia
+Norway | Noruega
+Iceland | Islândia
+Poland | Polônia
+Belgium | Bélgica
+Chile | Chile
+Peru | Peru
+Colombia | Colômbia
+Uruguay | Uruguai
+Paraguay | Paraguai
+Bolivia | Bolívia
+Venezuela | Venezuela
+Cuba | Cuba
+Jamaica | Jamaica
+South Korea | Coreia do Sul
+Thailand | Tailândia
+Vietnam | Vietnã
+Indonesia | Indonésia
+Philippines | Filipinas
+Morocco | Marrocos
+Nigeria | Nigéria
+Kenya | Quênia
+Israel | Israel
+Saudi Arabia | Arábia Saudita
+Hawaii | Havaí
+Alaska | Alasca
+California | Califórnia
+Texas | Texas
+Florida | Flórida
+Nevada | Nevada
+Louisiana | Luisiana
+Bahia | Bahia
+Minas Gerais | Minas Gerais
+Rio Grande do Sul | Rio Grande do Sul
+Santa Catarina | Santa Catarina
+Paraná | Paraná
+Amazonas | Amazonas
+Pará | Pará
+Pernambuco | Pernambuco
+Ceará | Ceará
+Goiás | Goiás
+Mato Grosso | Mato Grosso
+Espírito Santo | Espírito Santo
+Maranhão | Maranhão
+Acre | Acre
+Tocantins | Tocantins
+Rio de Janeiro | Rio de Janeiro
+São Paulo | São Paulo
+Salvador | Salvador
+Brasília | Brasília
+Recife | Recife
+Fortaleza | Fortaleza
+Belo Horizonte | Belo Horizonte
+Curitiba | Curitiba
+Porto Alegre | Porto Alegre
+Manaus | Manaus
+Florianópolis | Florianópolis
+Belém | Belém
+Natal | Natal
+Gramado | Gramado
+Foz do Iguaçu | Foz do Iguaçu
+Ouro Preto | Ouro Preto
+New York | Nova York
+Los Angeles | Los Angeles
+Las Vegas | Las Vegas
+Miami | Miami
+Chicago | Chicago
+San Francisco | São Francisco
+Washington, D.C. | Washington
+Orlando | Orlando
+Paris | Paris
+London | Londres
+Rome | Roma
+Venice | Veneza
+Barcelona | Barcelona
+Madrid | Madri
+Lisbon | Lisboa
+Amsterdam | Amsterdã
+Berlin | Berlim
+Moscow | Moscou
+Tokyo | Tóquio
+Beijing | Pequim
+Hong Kong | Hong Kong
+Dubai | Dubai
+Cairo | Cairo
+Sydney | Sydney
+Buenos Aires | Buenos Aires
+Mexico City | Cidade do México
+Toronto | Toronto
+Istanbul | Istambul
+Athens | Atenas
+Jerusalem | Jerusalém
+Mumbai | Mumbai
+Seoul | Seul
+Bangkok | Bangcoc
+Singapore | Singapura
+Havana | Havana
+Vatican City | Vaticano
+
+==================================================
+ACTIONS | AÇÕES  (163)
+==================================================
+Run | Correr
+Jump | Pular
+Swim | Nadar
+Dance | Dançar
+Sing | Cantar
+Sleep | Dormir
+Eat | Comer
+Drink | Beber
+Cry | Chorar
+Laugh | Rir
+Sneeze | Espirrar
+Yawn | Bocejar
+Cook | Cozinhar
+Read | Ler
+Write | Escrever
+Draw | Desenhar
+Paint | Pintar
+Drive | Dirigir
+Fly | Voar
+Climb | Escalar
+Fish | Pescar
+Throw | Arremessar
+Catch | Pegar
+Kick | Chutar
+Push | Empurrar
+Pull | Puxar
+Hug | Abraçar
+Kiss | Beijar
+Wave | Acenar
+Clap | Bater palmas
+Whistle | Assobiar
+Shout | Gritar
+Whisper | Sussurrar
+Knock on the door | Bater na porta
+Brush your teeth | Escovar os dentes
+Comb your hair | Pentear o cabelo
+Shave | Fazer a barba
+Take a shower | Tomar banho
+Get dressed | Vestir-se
+Tie your shoes | Amarrar o sapato
+Wash the dishes | Lavar a louça
+Sweep | Varrer
+Iron clothes | Passar roupa
+Vacuum | Passar aspirador
+Knit | Tricotar
+Sew | Costurar
+Juggle | Fazer malabarismo
+Skateboard | Andar de skate
+Surf | Surfar
+Ski | Esquiar
+Dive | Mergulhar
+Row | Remar
+Ride a bike | Andar de bicicleta
+Ride a horse | Andar a cavalo
+Hitchhike | Pedir carona
+Take a selfie | Tirar uma selfie
+Text someone | Mandar mensagem
+Make a phone call | Fazer uma ligação
+Type | Digitar
+Hide | Esconder-se
+Tiptoe | Andar na ponta dos pés
+Crawl | Engatinhar
+Roll | Rolar
+Spin | Girar
+Fall | Cair
+Slip | Escorregar
+Trip | Tropeçar
+Shiver | Tremer de frio
+Sweat | Suar
+Snore | Roncar
+Dream | Sonhar
+Wake up | Acordar
+Stretch | Alongar
+Lift weights | Levantar peso
+Do push-ups | Fazer flexões
+Meditate | Meditar
+Pray | Rezar
+Think | Pensar
+Forget | Esquecer
+Point | Apontar
+Bow | Fazer reverência
+Salute | Bater continência
+Shake hands | Apertar as mãos
+High five | Toca aqui
+Wink | Dar uma piscadinha
+Smell | Cheirar
+Taste | Provar
+Listen | Escutar
+Peek | Espiar
+Bite | Morder
+Chew | Mastigar
+Lick | Lamber
+Blow | Soprar
+Pour | Despejar
+Stir | Mexer a panela
+Chop | Picar
+Peel | Descascar
+Plant | Plantar
+Dig | Cavar
+Water the plants | Regar as plantas
+Build | Construir
+Fix | Consertar
+Break | Quebrar
+Lock | Trancar
+Pack a suitcase | Fazer as malas
+Go shopping | Fazer compras
+Pay | Pagar
+Count | Contar
+Steal | Roubar
+Arrest | Prender
+Chase | Perseguir
+Escape | Fugir
+Fight | Lutar
+Punch | Socar
+Sword fight | Lutar com espada
+Hammer | Martelar
+Saw | Serrar
+Take a photo | Tirar uma foto
+Film | Filmar
+Play guitar | Tocar violão
+Play drums | Tocar bateria
+Play piano | Tocar piano
+Conduct an orchestra | Reger uma orquestra
+Propose | Pedir em casamento
+Get married | Casar
+Feed the baby | Dar comida ao bebê
+Walk the dog | Passear com o cachorro
+Pet a dog | Fazer carinho no cachorro
+Milk a cow | Ordenhar uma vaca
+Blow bubbles | Fazer bolhas de sabão
+Fly a kite | Soltar pipa
+Hula hoop | Rodar bambolê
+Jump rope | Pular corda
+Play hide and seek | Brincar de esconde-esconde
+Build a snowman | Fazer um boneco de neve
+Blow out the candles | Apagar as velinhas
+Make a toast | Brindar
+Hiccup | Soluçar
+Faint | Desmaiar
+Panic | Entrar em pânico
+Celebrate | Comemorar
+Apologize | Pedir desculpas
+Argue | Discutir
+Gossip | Fofocar
+Flirt | Paquerar
+Lie | Mentir
+Vote | Votar
+Teach | Ensinar
+Study | Estudar
+Sunbathe | Tomar sol
+Camp | Acampar
+Hike | Fazer trilha
+Skydive | Saltar de paraquedas
+Bungee jump | Pular de bungee jump
+Sail | Velejar
+Cheer | Torcer
+Change a diaper | Trocar fralda
+Change a tire | Trocar o pneu
+Put on makeup | Passar maquiagem
+Paint your nails | Pintar as unhas
+Tickle | Fazer cócegas
+Sleepwalk | Ser sonâmbulo
+Moonwalk | Fazer o moonwalk
+
+==================================================
+ADJECTIVES | ADJETIVOS  (112)
+==================================================
+Happy | Feliz
+Sad | Triste
+Angry | Bravo
+Scared | Assustado
+Surprised | Surpreso
+Tired | Cansado
+Sleepy | Com sono
+Hungry | Com fome
+Thirsty | Com sede
+Bored | Entediado
+Excited | Animado
+Nervous | Nervoso
+Shy | Tímido
+Proud | Orgulhoso
+Jealous | Ciumento
+Confused | Confuso
+Lazy | Preguiçoso
+Brave | Corajoso
+Crazy | Louco
+Calm | Calmo
+Hot | Quente
+Cold | Frio
+Big | Grande
+Small | Pequeno
+Tall | Alto
+Short | Baixo
+Thin | Magro
+Chubby | Gordinho
+Strong | Forte
+Weak | Fraco
+Fast | Rápido
+Slow | Lento
+Old | Velho
+Young | Jovem
+New | Novo
+Heavy | Pesado
+Light | Leve
+Hard | Duro
+Soft | Macio
+Wet | Molhado
+Dry | Seco
+Clean | Limpo
+Dirty | Sujo
+Loud | Barulhento
+Quiet | Silencioso
+Beautiful | Bonito
+Ugly | Feio
+Rich | Rico
+Poor | Pobre
+Smart | Inteligente
+Funny | Engraçado
+Scary | Assustador
+Dangerous | Perigoso
+Sticky | Grudento
+Slippery | Escorregadio
+Spicy | Apimentado
+Sweet | Doce
+Sour | Azedo
+Bitter | Amargo
+Salty | Salgado
+Round | Redondo
+Square | Quadrado
+Sharp | Afiado
+Broken | Quebrado
+Empty | Vazio
+Full | Cheio
+Tight | Apertado
+Loose | Folgado
+Curly | Cacheado
+Bald | Careca
+Hairy | Peludo
+Wrinkled | Enrugado
+Shiny | Brilhante
+Dark | Escuro
+Invisible | Invisível
+Frozen | Congelado
+Burnt | Queimado
+Rotten | Podre
+Fresh | Fresco
+Sick | Doente
+Drunk | Bêbado
+Dizzy | Tonto
+Clumsy | Desastrado
+Elegant | Elegante
+Famous | Famoso
+Lucky | Sortudo
+Generous | Generoso
+Stingy | Mão de vaca
+Romantic | Romântico
+Grumpy | Mal-humorado
+Stubborn | Teimoso
+Curious | Curioso
+Polite | Educado
+Rude | Grosseiro
+Tiny | Minúsculo
+Giant | Gigante
+Deep | Profundo
+Fluffy | Fofinho
+Lost | Perdido
+Upside down | De cabeça para baixo
+Itchy | Com coceira
+Ticklish | Coceguento
+Sweaty | Suado
+Smelly | Fedorento
+Delicious | Delicioso
+Disgusting | Nojento
+Annoying | Irritante
+Sneaky | Sorrateiro
+Fancy | Chique
+Old-fashioned | Antiquado
+Spoiled | Mimado
+Hot-headed | Esquentado
+
+==================================================
+EVENTS | EVENTOS  (96)
+==================================================
+Birthday party | Festa de aniversário
+Wedding | Casamento
+Graduation | Formatura
+Baby shower | Chá de bebê
+Bridal shower | Chá de panela
+Bachelor party | Despedida de solteiro
+Funeral | Velório
+Christmas | Natal
+New Year's Eve | Réveillon
+Easter | Páscoa
+Halloween | Halloween
+Carnival | Carnaval
+Thanksgiving | Dia de Ação de Graças
+Valentine's Day | Dia dos Namorados
+Mother's Day | Dia das Mães
+Father's Day | Dia dos Pais
+Children's Day | Dia das Crianças
+June Festival | Festa Junina
+Oktoberfest | Oktoberfest
+Rock in Rio | Rock in Rio
+Olympics | Olimpíadas
+World Cup | Copa do Mundo
+Super Bowl | Super Bowl
+The Oscars | Oscar
+Grammy Awards | Grammy
+Fashion show | Desfile de moda
+Concert | Show
+Music festival | Festival de música
+Parade | Parada
+Fireworks show | Queima de fogos
+Circus | Circo
+Fair | Feira
+Rodeo | Rodeio
+Marathon | Maratona
+Election | Eleição
+Protest | Protesto
+Job interview | Entrevista de emprego
+First date | Primeiro encontro
+Prom | Baile de formatura
+Sleepover | Festa do pijama
+Barbecue | Churrasco
+Picnic | Piquenique
+Camping trip | Acampamento
+Road trip | Viagem de carro
+Honeymoon | Lua de mel
+Family reunion | Reunião de família
+Surprise party | Festa surpresa
+Costume party | Festa à fantasia
+Karaoke night | Noite de karaokê
+Talent show | Show de talentos
+Science fair | Feira de ciências
+Book fair | Bienal do livro
+Comic-Con | Comic-Con
+Earthquake | Terremoto
+Hurricane | Furacão
+Flood | Enchente
+Blackout | Apagão
+Traffic jam | Engarrafamento
+Car accident | Acidente de carro
+Bank robbery | Assalto a banco
+Christening | Batizado
+First Communion | Primeira Comunhão
+Bar Mitzvah | Bar Mitzvah
+Quinceañera | Festa de 15 anos
+Retirement party | Festa de aposentadoria
+Housewarming party | Chá de casa nova
+Gender reveal party | Chá revelação
+Black Friday | Black Friday
+Moon landing | Pouso na Lua
+Coronation | Coroação
+Award ceremony | Cerimônia de premiação
+Auction | Leilão
+Garage sale | Bazar de garagem
+Flash mob | Flash mob
+Wine tasting | Degustação de vinhos
+Pillow fight | Guerra de travesseiros
+Water balloon fight | Guerra de balões de água
+Snowball fight | Guerra de bolas de neve
+Fourth of July | Quatro de Julho
+Brazilian Independence Day | Sete de Setembro
+Saint Patrick's Day | Dia de São Patrício
+Day of the Dead | Dia dos Mortos
+Chinese New Year | Ano-Novo Chinês
+Hanukkah | Hanucá
+Ramadan | Ramadã
+Diwali | Diwali
+Formula 1 Grand Prix | Grande Prêmio de Fórmula 1
+Parintins Folklore Festival | Festival de Parintins
+Secret Santa | Amigo secreto
+Easter egg hunt | Caça aos ovos de Páscoa
+School trip | Excursão escolar
+Movie premiere | Estreia de filme
+Book signing | Sessão de autógrafos
+Garage band rehearsal | Ensaio de banda
+Video call meeting | Reunião por vídeo
+Housewarming barbecue | Churrasco de inauguração
+
+==================================================
+GENERAL | GERAL  (116)
+==================================================
+Love | Amor
+Rainbow | Arco-íris
+Sun | Sol
+Moon | Lua
+Star | Estrela
+Cloud | Nuvem
+Rain | Chuva
+Snow | Neve
+Lightning | Raio
+Thunder | Trovão
+Wind | Vento
+Fire | Fogo
+Water | Água
+Ice | Gelo
+Tree | Árvore
+Flower | Flor
+Mountain | Montanha
+River | Rio
+Ocean | Oceano
+Island | Ilha
+Volcano | Vulcão
+Desert | Deserto
+Forest | Floresta
+Beach | Praia
+Waterfall | Cachoeira
+Cave | Caverna
+House | Casa
+Castle | Castelo
+Bridge | Ponte
+Road | Estrada
+Ghost | Fantasma
+Monster | Monstro
+Dragon | Dragão
+Unicorn | Unicórnio
+Mermaid | Sereia
+Robot | Robô
+Alien | Alienígena
+Vampire | Vampiro
+Zombie | Zumbi
+Witch | Bruxa
+Wizard | Mago
+Fairy | Fada
+Pirate | Pirata
+Ninja | Ninja
+Knight | Cavaleiro
+King | Rei
+Queen | Rainha
+Princess | Princesa
+Treasure | Tesouro
+Map | Mapa
+Money | Dinheiro
+Gift | Presente
+Balloon | Balão
+Cake | Bolo
+Candle | Vela
+Music | Música
+Party | Festa
+Dream | Sonho
+Nightmare | Pesadelo
+Shadow | Sombra
+Echo | Eco
+Smoke | Fumaça
+Bubble | Bolha
+Snowman | Boneco de neve
+Sandcastle | Castelo de areia
+Kite | Pipa
+Secret | Segredo
+Joke | Piada
+Magic trick | Truque de mágica
+Holiday | Feriado
+Weekend | Fim de semana
+Morning | Manhã
+Night | Noite
+Sunrise | Nascer do sol
+Sunset | Pôr do sol
+Spring | Primavera
+Summer | Verão
+Autumn | Outono
+Winter | Inverno
+Haunted house | Casa mal-assombrada
+Spaceship | Nave espacial
+Time machine | Máquina do tempo
+Superhero | Super-herói
+Villain | Vilão
+Mummy | Múmia
+Werewolf | Lobisomem
+Tornado | Tornado
+Tsunami | Tsunami
+Fog | Neblina
+Hail | Granizo
+Shooting star | Estrela cadente
+Northern lights | Aurora boreal
+Wishing well | Poço dos desejos
+Message in a bottle | Mensagem na garrafa
+Fortune teller | Cartomante
+Crystal ball | Bola de cristal
+Magic carpet | Tapete mágico
+Genie in a lamp | Gênio da lâmpada
+Footprint | Pegada
+Puzzle | Quebra-cabeça
+Riddle | Charada
+Selfie | Selfie
+Meme | Meme
+Emoji | Emoji
+Wi-Fi | Wi-Fi
+Password | Senha
+Hashtag | Hashtag
+Vacation | Férias
+Homework | Lição de casa
+Alarm | Alarme
+Line (queue) | Fila
+Graffiti | Grafite
+Tattoo | Tatuagem
+Hiccups | Soluço
+Yawn | Bocejo
+Hug | Abraço
+
+==================================================
+JOBS | PROFISSÕES  (112)
+==================================================
+Doctor | Médico
+Nurse | Enfermeiro
+Dentist | Dentista
+Teacher | Professor
+Firefighter | Bombeiro
+Police officer | Policial
+Chef | Chef de cozinha
+Waiter | Garçom
+Pilot | Piloto
+Flight attendant | Comissário de bordo
+Astronaut | Astronauta
+Farmer | Fazendeiro
+Fisherman | Pescador
+Mechanic | Mecânico
+Electrician | Eletricista
+Plumber | Encanador
+Carpenter | Carpinteiro
+Bricklayer | Pedreiro
+Painter | Pintor
+Architect | Arquiteto
+Engineer | Engenheiro
+Lawyer | Advogado
+Judge | Juiz
+Scientist | Cientista
+Veterinarian | Veterinário
+Pharmacist | Farmacêutico
+Surgeon | Cirurgião
+Psychologist | Psicólogo
+Journalist | Jornalista
+Photographer | Fotógrafo
+Actor | Ator
+Singer | Cantor
+Dancer | Dançarino
+Musician | Músico
+DJ | DJ
+Clown | Palhaço
+Magician | Mágico
+Juggler | Malabarista
+Writer | Escritor
+Librarian | Bibliotecário
+Programmer | Programador
+YouTuber | YouTuber
+Influencer | Influenciador digital
+Hairdresser | Cabeleireiro
+Barber | Barbeiro
+Manicurist | Manicure
+Tailor | Alfaiate
+Baker | Padeiro
+Butcher | Açougueiro
+Cashier | Caixa de supermercado
+Mail carrier | Carteiro
+Delivery person | Entregador
+Taxi driver | Taxista
+Rideshare driver | Motorista de aplicativo
+Bus driver | Motorista de ônibus
+Truck driver | Caminhoneiro
+Garbage collector | Lixeiro
+Street sweeper | Gari
+Security guard | Segurança
+Lifeguard | Salva-vidas
+Soldier | Soldado
+Sailor | Marinheiro
+Detective | Detetive
+Spy | Espião
+Lumberjack | Lenhador
+Miner | Minerador
+Gardener | Jardineiro
+Beekeeper | Apicultor
+Zookeeper | Tratador de zoológico
+Tour guide | Guia turístico
+Translator | Tradutor
+Secretary | Secretário
+Accountant | Contador
+Banker | Banqueiro
+Real estate agent | Corretor de imóveis
+Salesperson | Vendedor
+Street vendor | Camelô
+Model | Modelo
+Fashion designer | Estilista
+Personal trainer | Personal trainer
+Coach | Treinador
+Referee | Árbitro
+Athlete | Atleta
+Priest | Padre
+Nun | Freira
+Monk | Monge
+President | Presidente
+Mayor | Prefeito
+Ambassador | Embaixador
+Archaeologist | Arqueólogo
+Astronomer | Astrônomo
+Paleontologist | Paleontólogo
+Babysitter | Babá
+Housekeeper | Diarista
+Window cleaner | Limpador de janelas
+Locksmith | Chaveiro
+Shoemaker | Sapateiro
+Jeweler | Joalheiro
+Florist | Florista
+Bartender | Barman
+Sommelier | Sommelier
+Stuntman | Dublê
+Voice actor | Dublador
+Puppeteer | Marionetista
+Tattoo artist | Tatuador
+Cowboy | Vaqueiro
+Ballerina | Bailarina
+Opera singer | Cantor de ópera
+News anchor | Apresentador de telejornal
+Weather forecaster | Moça do tempo
+Air traffic controller | Controlador de voo
+Lighthouse keeper | Faroleiro
+
+==================================================
+PEOPLE | PESSOAS  (92)
+==================================================
+Baby | Bebê
+Child | Criança
+Teenager | Adolescente
+Adult | Adulto
+Grandma | Avó
+Grandpa | Avô
+Mom | Mãe
+Dad | Pai
+Brother | Irmão
+Sister | Irmã
+Twins | Gêmeos
+Uncle | Tio
+Aunt | Tia
+Cousin | Primo
+Mother-in-law | Sogra
+Father-in-law | Sogro
+Stepmother | Madrasta
+Godfather | Padrinho
+Godmother | Madrinha
+Bride | Noiva
+Groom | Noivo
+Boyfriend | Namorado
+Girlfriend | Namorada
+Husband | Marido
+Wife | Esposa
+Best friend | Melhor amigo
+Neighbor | Vizinho
+Stranger | Estranho
+Tourist | Turista
+Boss | Chefe
+Coworker | Colega de trabalho
+Classmate | Colega de classe
+Student | Aluno
+Fan | Fã
+Celebrity | Celebridade
+Hipster | Hipster
+Nerd | Nerd
+Gamer | Gamer
+Skater | Skater
+Surfer | Surfista
+Hippie | Hippie
+Punk | Punk
+Emo | Emo
+Cowboy | Caubói
+Gaúcho | Gaúcho
+Hermit | Eremita
+Know-it-all | Sabichão
+Couch potato | Viciado em sofá
+Workaholic | Viciado em trabalho
+Party animal | Baladeiro
+Drama queen | Dramático
+Show-off | Exibido
+Gossip | Fofoqueiro
+Liar | Mentiroso
+Thief | Ladrão
+Millionaire | Milionário
+Genius | Gênio
+Vegan | Vegano
+Bodybuilder | Fisiculturista
+Newborn | Recém-nascido
+Toddler | Criança pequena
+Retiree | Aposentado
+Widow | Viúva
+Ex-boyfriend | Ex-namorado
+Crush | Crush
+Roommate | Colega de quarto
+Passenger | Passageiro
+Pedestrian | Pedestre
+Customer | Cliente
+Patient | Paciente
+Prisoner | Prisioneiro
+Witness | Testemunha
+Volunteer | Voluntário
+Leader | Líder
+Champion | Campeão
+Winner | Vencedor
+Loser | Perdedor
+Cheerleader | Líder de torcida
+Mime | Mímico
+Ventriloquist | Ventríloquo
+Sleepwalker | Sonâmbulo
+Left-handed person | Canhoto
+Redhead | Ruivo
+Blonde | Loiro
+Bald man | Careca
+Tall guy | Grandalhão
+Little old lady | Velhinha
+Grumpy old man | Velho rabugento
+Birthday boy | Aniversariante
+Newlyweds | Recém-casados
+Backpacker | Mochileiro
+Hitchhiker | Caroneiro
+
+==================================================
+PLACES | LUGARES  (101)
+==================================================
+School | Escola
+Hospital | Hospital
+Library | Biblioteca
+Museum | Museu
+Supermarket | Supermercado
+Bakery | Padaria
+Pharmacy | Farmácia
+Bank | Banco
+Post office | Correios
+Police station | Delegacia
+Fire station | Quartel de bombeiros
+Airport | Aeroporto
+Train station | Estação de trem
+Bus stop | Ponto de ônibus
+Gas station | Posto de gasolina
+Restaurant | Restaurante
+Coffee shop | Cafeteria
+Bar | Bar
+Nightclub | Balada
+Movie theater | Cinema
+Theater | Teatro
+Stadium | Estádio
+Gym | Academia
+Swimming pool | Piscina
+Park | Parque
+Playground | Parquinho
+Zoo | Zoológico
+Aquarium | Aquário
+Amusement park | Parque de diversões
+Water park | Parque aquático
+Shopping mall | Shopping
+Church | Igreja
+Cemetery | Cemitério
+Prison | Prisão
+Courthouse | Tribunal
+City hall | Prefeitura
+Hotel | Hotel
+Hostel | Albergue
+Farm | Fazenda
+Barn | Celeiro
+Lighthouse | Farol
+Harbor | Porto
+Factory | Fábrica
+Office | Escritório
+Laboratory | Laboratório
+Kitchen | Cozinha
+Bathroom | Banheiro
+Bedroom | Quarto
+Living room | Sala de estar
+Garage | Garagem
+Attic | Sótão
+Basement | Porão
+Backyard | Quintal
+Balcony | Varanda
+Elevator | Elevador
+Rooftop | Terraço
+Subway | Metrô
+Parking lot | Estacionamento
+Car wash | Lava-jato
+Laundromat | Lavanderia
+Beauty salon | Salão de beleza
+Barbershop | Barbearia
+Tattoo parlor | Estúdio de tatuagem
+Pet shop | Pet shop
+Vet clinic | Clínica veterinária
+Flower shop | Floricultura
+Bookstore | Livraria
+Toy store | Loja de brinquedos
+Ice cream shop | Sorveteria
+Pizzeria | Pizzaria
+Butcher shop | Açougue
+Street market | Feira livre
+Favela | Favela
+Jungle | Selva
+Outer space | Espaço sideral
+North Pole | Polo Norte
+Igloo | Iglu
+Tent | Barraca
+Treehouse | Casa na árvore
+Casino | Cassino
+Bowling alley | Boliche
+Ice rink | Pista de patinação
+Ski resort | Estação de esqui
+Spa | Spa
+Sauna | Sauna
+Desert island | Ilha deserta
+Temple | Templo
+Mosque | Mesquita
+Palace | Palácio
+Embassy | Embaixada
+University | Universidade
+Daycare | Creche
+Nursing home | Asilo
+Construction site | Obra
+Junkyard | Ferro-velho
+Dentist's office | Consultório do dentista
+Waiting room | Sala de espera
+Classroom | Sala de aula
+Beach kiosk | Quiosque de praia
+Bus station | Rodoviária
+Newsstand | Banca de jornal
+
+==================================================
+BRANDS | MARCAS  (106)
+==================================================
+Coca-Cola | Coca-Cola
+Pepsi | Pepsi
+McDonald's | McDonald's
+Burger King | Burger King
+KFC | KFC
+Subway | Subway
+Starbucks | Starbucks
+Pizza Hut | Pizza Hut
+Domino's | Domino's
+Outback | Outback
+Habib's | Habib's
+Nike | Nike
+Adidas | Adidas
+Puma | Puma
+Apple | Apple
+Samsung | Samsung
+Google | Google
+Microsoft | Microsoft
+Amazon | Amazon
+Netflix | Netflix
+Disney | Disney
+YouTube | YouTube
+Instagram | Instagram
+TikTok | TikTok
+Facebook | Facebook
+WhatsApp | WhatsApp
+X (Twitter) | X (Twitter)
+Spotify | Spotify
+Uber | Uber
+iFood | iFood
+Mercado Livre | Mercado Livre
+Nubank | Nubank
+Havaianas | Havaianas
+Natura | Natura
+O Boticário | O Boticário
+Guaraná Antarctica | Guaraná Antarctica
+Brahma | Brahma
+Skol | Skol
+Heineken | Heineken
+Red Bull | Red Bull
+Nescau | Nescau
+Nestlé | Nestlé
+Kit Kat | Kit Kat
+Oreo | Oreo
+M&M's | M&M's
+Nutella | Nutella
+Lacta | Lacta
+Bis | Bis
+Danone | Danone
+Toddynho | Toddynho
+Leite Moça | Leite Moça
+Bauducco | Bauducco
+Ferrero Rocher | Ferrero Rocher
+Doritos | Doritos
+Ruffles | Ruffles
+Pringles | Pringles
+LEGO | LEGO
+Barbie | Barbie
+Hot Wheels | Hot Wheels
+PlayStation | PlayStation
+Xbox | Xbox
+Nintendo | Nintendo
+Tesla | Tesla
+Ferrari | Ferrari
+Lamborghini | Lamborghini
+Volkswagen | Volkswagen
+Toyota | Toyota
+Ford | Ford
+Chevrolet | Chevrolet
+BMW | BMW
+Mercedes-Benz | Mercedes-Benz
+Fiat | Fiat
+Jeep | Jeep
+Harley-Davidson | Harley-Davidson
+Rolex | Rolex
+Louis Vuitton | Louis Vuitton
+Gucci | Gucci
+Chanel | Chanel
+Zara | Zara
+Ray-Ban | Ray-Ban
+Converse | Converse
+Vans | Vans
+Crocs | Crocs
+Levi's | Levi's
+Lacoste | Lacoste
+IKEA | IKEA
+Shell | Shell
+Petrobras | Petrobras
+Visa | Visa
+Mastercard | Mastercard
+PayPal | PayPal
+Airbnb | Airbnb
+LinkedIn | LinkedIn
+Colgate | Colgate
+Gillette | Gillette
+Dove | Dove
+Bombril | Bombril
+Post-it | Post-it
+Band-Aid | Band-Aid
+Tupperware | Tupperware
+Magazine Luiza | Magazine Luiza
+Casas Bahia | Casas Bahia
+Americanas | Americanas
+Itaú | Itaú
+Bradesco | Bradesco
+ChatGPT | ChatGPT
+
+==================================================
+MOVIES (KIDS) | FILMES (INFANTIS)  (104)
+==================================================
+The Lion King | O Rei Leão
+Toy Story | Toy Story
+Finding Nemo | Procurando Nemo
+Finding Dory | Procurando Dory
+Up | Up: Altas Aventuras
+Inside Out | Divertida Mente
+Inside Out 2 | Divertida Mente 2
+Coco | Viva: A Vida é uma Festa
+Cars | Carros
+Monsters, Inc. | Monstros S.A.
+The Incredibles | Os Incríveis
+Ratatouille | Ratatouille
+WALL-E | WALL-E
+A Bug's Life | Vida de Inseto
+Luca | Luca
+Soul | Soul
+Turning Red | Red: Crescer é uma Fera
+Elemental | Elementos
+Onward | Dois Irmãos: Uma Jornada Fantástica
+Shrek | Shrek
+Madagascar | Madagascar
+Ice Age | A Era do Gelo
+Rio | Rio
+Despicable Me | Meu Malvado Favorito
+Minions | Minions
+Kung Fu Panda | Kung Fu Panda
+How to Train Your Dragon | Como Treinar o Seu Dragão
+Frozen | Frozen: Uma Aventura Congelante
+Moana | Moana: Um Mar de Aventuras
+Encanto | Encanto
+Zootopia | Zootopia: Essa Cidade é o Bicho
+Tangled | Enrolados
+Brave | Valente
+The Little Mermaid | A Pequena Sereia
+Aladdin | Aladdin
+Beauty and the Beast | A Bela e a Fera
+Cinderella | Cinderela
+Snow White and the Seven Dwarfs | Branca de Neve e os Sete Anões
+Sleeping Beauty | A Bela Adormecida
+Pinocchio | Pinóquio
+Dumbo | Dumbo
+Bambi | Bambi
+Peter Pan | Peter Pan
+101 Dalmatians | 101 Dálmatas
+The Jungle Book | Mogli: O Menino Lobo
+Mulan | Mulan
+Pocahontas | Pocahontas
+Hercules | Hércules
+Tarzan | Tarzan
+Lilo & Stitch | Lilo & Stitch
+Alice in Wonderland | Alice no País das Maravilhas
+The Aristocats | Aristogatas
+Lady and the Tramp | A Dama e o Vagabundo
+The Fox and the Hound | O Cão e a Raposa
+The Emperor's New Groove | A Nova Onda do Imperador
+Brother Bear | Irmão Urso
+Wreck-It Ralph | Detona Ralph
+Big Hero 6 | Operação Big Hero
+Bolt | Bolt: Supercão
+The Princess and the Frog | A Princesa e o Sapo
+Raya and the Last Dragon | Raya e o Último Dragão
+The Lego Movie | Uma Aventura LEGO
+Sing | Sing: Quem Canta Seus Males Espanta
+The Secret Life of Pets | Pets: A Vida Secreta dos Bichos
+Trolls | Trolls
+Hotel Transylvania | Hotel Transilvânia
+Cloudy with a Chance of Meatballs | Tá Chovendo Hambúrguer
+Megamind | Megamente
+Puss in Boots | Gato de Botas
+The Croods | Os Croods
+The Boss Baby | O Poderoso Chefinho
+Spider-Man: Into the Spider-Verse | Homem-Aranha no Aranhaverso
+The Super Mario Bros. Movie | Super Mario Bros.: O Filme
+Sonic the Hedgehog | Sonic: O Filme
+A Minecraft Movie | Um Filme Minecraft
+KPop Demon Hunters | Guerreiras do K-Pop
+The Wild Robot | Robô Selvagem
+Paddington | Paddington
+Home Alone | Esqueceram de Mim
+Matilda | Matilda
+Charlie and the Chocolate Factory | A Fantástica Fábrica de Chocolate
+The Wizard of Oz | O Mágico de Oz
+Harry Potter | Harry Potter
+Jumanji | Jumanji
+E.T. the Extra-Terrestrial | E.T.: O Extraterrestre
+Babe | Babe: O Porquinho Atrapalhado
+Stuart Little | O Pequeno Stuart Little
+Alvin and the Chipmunks | Alvin e os Esquilos
+Chicken Run | A Fuga das Galinhas
+Corpse Bride | A Noiva Cadáver
+Coraline | Coraline e o Mundo Secreto
+The Nightmare Before Christmas | O Estranho Mundo de Jack
+Monsters vs. Aliens | Monstros vs. Alienígenas
+Bee Movie | Bee Movie: A História de uma Abelha
+Shark Tale | O Espanta Tubarões
+Happy Feet | Happy Feet: O Pinguim
+Space Jam | Space Jam: O Jogo do Século
+The Polar Express | O Expresso Polar
+Mary Poppins | Mary Poppins
+Hocus Pocus | Abracadabra
+Ferdinand | O Touro Ferdinando
+The Smurfs | Os Smurfs
+Garfield | Garfield
+Scooby-Doo | Scooby-Doo
+
+==================================================
+TV SERIES | SÉRIES DE TV  (110)
+==================================================
+Friends | Friends
+The Office | The Office
+Breaking Bad | Breaking Bad: A Química do Mal
+Game of Thrones | Game of Thrones
+House of the Dragon | A Casa do Dragão
+Stranger Things | Stranger Things
+The Simpsons | Os Simpsons
+Grey's Anatomy | Grey's Anatomy
+Lost | Lost
+Prison Break | Prison Break
+The Big Bang Theory | The Big Bang Theory
+How I Met Your Mother | Como Eu Conheci Sua Mãe
+Two and a Half Men | Dois Homens e Meio
+Everybody Hates Chris | Todo Mundo Odeia o Chris
+Money Heist | La Casa de Papel
+Squid Game | Round 6
+Wednesday | Wandinha
+The Walking Dead | The Walking Dead
+Dark | Dark
+The Crown | The Crown
+Bridgerton | Bridgerton
+The Witcher | The Witcher
+The Mandalorian | The Mandalorian
+The Last of Us | The Last of Us
+Peaky Blinders | Peaky Blinders
+Sherlock | Sherlock
+Doctor Who | Doctor Who
+Black Mirror | Black Mirror
+Narcos | Narcos
+Vikings | Vikings
+Sex Education | Sex Education
+Euphoria | Euphoria
+Gossip Girl | Gossip Girl
+Glee | Glee
+Desperate Housewives | Desperate Housewives
+Dexter | Dexter
+House | Dr. House
+Supernatural | Sobrenatural
+Smallville | Smallville
+The Sopranos | Família Soprano
+Modern Family | Família Moderna
+Brooklyn Nine-Nine | Brooklyn Nine-Nine
+Seinfeld | Seinfeld
+The Fresh Prince of Bel-Air | Um Maluco no Pedaço
+El Chavo | Chaves
+El Chapulín Colorado | Chapolin Colorado
+SpongeBob SquarePants | Bob Esponja Calça Quadrada
+Family Guy | Uma Família da Pesada
+South Park | South Park
+Rick and Morty | Rick and Morty
+Avatar: The Last Airbender | Avatar: A Lenda de Aang
+Gilmore Girls | Gilmore Girls: Tal Mãe, Tal Filha
+Orange Is the New Black | Orange Is the New Black
+13 Reasons Why | 13 Reasons Why
+The Boys | The Boys
+Ted Lasso | Ted Lasso
+Succession | Succession
+The Bear | O Urso
+Severance | Ruptura
+Adolescence | Adolescência
+The White Lotus | The White Lotus
+Chernobyl | Chernobyl
+Lupin | Lupin
+Elite | Elite
+Outer Banks | Outer Banks
+Cobra Kai | Cobra Kai
+Heartstopper | Heartstopper
+You | Você
+The Good Doctor | The Good Doctor: O Bom Doutor
+Suits | Suits
+Mr. Robot | Mr. Robot
+Westworld | Westworld
+Twin Peaks | Twin Peaks
+The X-Files | Arquivo X
+Baywatch | S.O.S. Malibu
+Full House | Três é Demais
+The Addams Family | A Família Addams
+Bewitched | A Feiticeira
+I Dream of Jeannie | Jeannie é um Gênio
+Power Rangers | Power Rangers
+Hannah Montana | Hannah Montana
+iCarly | iCarly
+The Vampire Diaries | Diários de um Vampiro
+Riverdale | Riverdale
+Emily in Paris | Emily em Paris
+Better Call Saul | Better Call Saul
+Downton Abbey | Downton Abbey
+Shōgun | Xógum: A Gloriosa Saga do Japão
+Arcane | Arcane
+Loki | Loki
+WandaVision | WandaVision
+Bluey | Bluey
+Peppa Pig | Peppa Pig
+Big Brother | Big Brother
+MasterChef | MasterChef
+Shark Tank | Shark Tank
+Castelo Rá-Tim-Bum | Castelo Rá-Tim-Bum
+Sítio do Picapau Amarelo | Sítio do Picapau Amarelo
+A Grande Família | A Grande Família
+Os Normais | Os Normais
+Sai de Baixo | Sai de Baixo
+Os Trapalhões | Os Trapalhões
+Malhação | Malhação
+Carrossel | Carrossel
+Chiquititas | Chiquititas
+Avenida Brasil | Avenida Brasil
+Pantanal | Pantanal
+Invisible City | Cidade Invisível
+Sintonia | Sintonia
+Brotherhood | Irmandade
+
+==================================================
+MUSIC - ROCK | MÚSICA - ROCK  (106)
+==================================================
+Queen | Queen
+The Beatles | The Beatles
+The Rolling Stones | The Rolling Stones
+Led Zeppelin | Led Zeppelin
+Pink Floyd | Pink Floyd
+AC/DC | AC/DC
+Nirvana | Nirvana
+Guns N' Roses | Guns N' Roses
+Metallica | Metallica
+Bon Jovi | Bon Jovi
+KISS | KISS
+Iron Maiden | Iron Maiden
+Aerosmith | Aerosmith
+Red Hot Chili Peppers | Red Hot Chili Peppers
+Foo Fighters | Foo Fighters
+Linkin Park | Linkin Park
+Green Day | Green Day
+U2 | U2
+The Who | The Who
+The Doors | The Doors
+Black Sabbath | Black Sabbath
+Ozzy Osbourne | Ozzy Osbourne
+Elvis Presley | Elvis Presley
+Chuck Berry | Chuck Berry
+Jimi Hendrix | Jimi Hendrix
+Arctic Monkeys | Arctic Monkeys
+The Killers | The Killers
+Oasis | Oasis
+Radiohead | Radiohead
+Evanescence | Evanescence
+Legião Urbana | Legião Urbana
+Titãs | Titãs
+Os Paralamas do Sucesso | Os Paralamas do Sucesso
+Barão Vermelho | Barão Vermelho
+Cazuza | Cazuza
+Raul Seixas | Raul Seixas
+Rita Lee | Rita Lee
+Os Mutantes | Os Mutantes
+Capital Inicial | Capital Inicial
+Charlie Brown Jr. | Charlie Brown Jr.
+Mamonas Assassinas | Mamonas Assassinas
+Engenheiros do Hawaii | Engenheiros do Hawaii
+Skank | Skank
+Sepultura | Sepultura
+CPM 22 | CPM 22
+Pitty | Pitty
+Kid Abelha | Kid Abelha
+Ira! | Ira!
+Bohemian Rhapsody | Bohemian Rhapsody
+We Will Rock You | We Will Rock You
+Don't Stop Me Now | Don't Stop Me Now
+Under Pressure | Under Pressure
+Stairway to Heaven | Stairway to Heaven
+Smells Like Teen Spirit | Smells Like Teen Spirit
+Sweet Child O' Mine | Sweet Child O' Mine
+November Rain | November Rain
+Welcome to the Jungle | Welcome to the Jungle
+Highway to Hell | Highway to Hell
+Back in Black | Back in Black
+Thunderstruck | Thunderstruck
+Hotel California | Hotel California
+Livin' on a Prayer | Livin' on a Prayer
+Another Brick in the Wall | Another Brick in the Wall
+Wish You Were Here | Wish You Were Here
+(I Can't Get No) Satisfaction | (I Can't Get No) Satisfaction
+Paint It Black | Paint It Black
+Enter Sandman | Enter Sandman
+Nothing Else Matters | Nothing Else Matters
+Smoke on the Water | Smoke on the Water
+Hey Jude | Hey Jude
+Let It Be | Let It Be
+Yellow Submarine | Yellow Submarine
+Wonderwall | Wonderwall
+Seven Nation Army | Seven Nation Army
+In the End | In the End
+Numb | Numb
+Basket Case | Basket Case
+Boulevard of Broken Dreams | Boulevard of Broken Dreams
+Mr. Brightside | Mr. Brightside
+Zombie | Zombie
+Creep | Creep
+Bring Me to Life | Bring Me to Life
+I Was Made for Lovin' You | I Was Made for Lovin' You
+Eye of the Tiger | Eye of the Tiger
+Dream On | Dream On
+Jailhouse Rock | Jailhouse Rock
+Johnny B. Goode | Johnny B. Goode
+Born to Run | Born to Run
+Tempo Perdido | Tempo Perdido
+Faroeste Caboclo | Faroeste Caboclo
+Pais e Filhos | Pais e Filhos
+Eduardo e Mônica | Eduardo e Mônica
+Que País É Este | Que País É Este
+Epitáfio | Epitáfio
+Sonífera Ilha | Sonífera Ilha
+Meu Erro | Meu Erro
+Ovelha Negra | Ovelha Negra
+Maluco Beleza | Maluco Beleza
+Metamorfose Ambulante | Metamorfose Ambulante
+Pelados em Santos | Pelados em Santos
+Exagerado | Exagerado
+Pro Dia Nascer Feliz | Pro Dia Nascer Feliz
+Infinita Highway | Infinita Highway
+Primeiros Erros | Primeiros Erros
+Só os Loucos Sabem | Só os Loucos Sabem
+Lanterna dos Afogados | Lanterna dos Afogados
+
+==================================================
+MUSIC - POP | MÚSICA - POP  (104)
+==================================================
+Michael Jackson | Michael Jackson
+Madonna | Madonna
+Britney Spears | Britney Spears
+Lady Gaga | Lady Gaga
+Taylor Swift | Taylor Swift
+Beyoncé | Beyoncé
+Rihanna | Rihanna
+Katy Perry | Katy Perry
+Ariana Grande | Ariana Grande
+Billie Eilish | Billie Eilish
+Dua Lipa | Dua Lipa
+Bruno Mars | Bruno Mars
+Ed Sheeran | Ed Sheeran
+Justin Bieber | Justin Bieber
+Shakira | Shakira
+Adele | Adele
+Harry Styles | Harry Styles
+Olivia Rodrigo | Olivia Rodrigo
+Sabrina Carpenter | Sabrina Carpenter
+The Weeknd | The Weeknd
+Miley Cyrus | Miley Cyrus
+Selena Gomez | Selena Gomez
+Justin Timberlake | Justin Timberlake
+Whitney Houston | Whitney Houston
+Mariah Carey | Mariah Carey
+Cher | Cher
+Elton John | Elton John
+Spice Girls | Spice Girls
+Backstreet Boys | Backstreet Boys
+NSYNC | NSYNC
+One Direction | One Direction
+ABBA | ABBA
+BTS | BTS
+BLACKPINK | BLACKPINK
+Rosé | Rosé
+Anitta | Anitta
+Ivete Sangalo | Ivete Sangalo
+Xuxa | Xuxa
+Sandy & Junior | Sandy & Junior
+Luísa Sonza | Luísa Sonza
+Pabllo Vittar | Pabllo Vittar
+Ludmilla | Ludmilla
+Claudia Leitte | Claudia Leitte
+Rouge | Rouge
+KLB | KLB
+Thriller | Thriller
+Billie Jean | Billie Jean
+Beat It | Beat It
+Like a Prayer | Like a Prayer
+Material Girl | Material Girl
+Like a Virgin | Like a Virgin
+...Baby One More Time | ...Baby One More Time
+Toxic | Toxic
+Poker Face | Poker Face
+Bad Romance | Bad Romance
+Shallow | Shallow
+Shake It Off | Shake It Off
+Anti-Hero | Anti-Hero
+Love Story | Love Story
+Single Ladies | Single Ladies
+Crazy in Love | Crazy in Love
+Umbrella | Umbrella
+Diamonds | Diamonds
+Firework | Firework
+Roar | Roar
+Thank U, Next | Thank U, Next
+7 Rings | 7 Rings
+Bad Guy | Bad Guy
+Levitating | Levitating
+Uptown Funk | Uptown Funk
+Shape of You | Shape of You
+Baby | Baby
+Despacito | Despacito
+Hips Don't Lie | Hips Don't Lie
+Waka Waka | Waka Waka
+Rolling in the Deep | Rolling in the Deep
+Hello | Hello
+As It Was | As It Was
+Drivers License | Drivers License
+Espresso | Espresso
+Blinding Lights | Blinding Lights
+Wannabe | Wannabe
+I Want It That Way | I Want It That Way
+Bye Bye Bye | Bye Bye Bye
+What Makes You Beautiful | What Makes You Beautiful
+Dancing Queen | Dancing Queen
+Mamma Mia | Mamma Mia
+Dynamite | Dynamite
+Gangnam Style | Gangnam Style
+APT. | APT.
+Macarena | Macarena
+Flowers | Flowers
+Dance Monkey | Dance Monkey
+Happy | Happy
+Call Me Maybe | Call Me Maybe
+Girls Just Want to Have Fun | Girls Just Want to Have Fun
+Wrecking Ball | Wrecking Ball
+I Will Always Love You | I Will Always Love You
+Show das Poderosas | Show das Poderosas
+Envolver | Envolver
+Vai Malandra | Vai Malandra
+Ilariê | Ilariê
+Festa (Ivete Sangalo) | Festa (Ivete Sangalo)
+Ragatanga | Ragatanga
+
+==================================================
+MUSIC - MPB | MÚSICA - MPB  (91)
+==================================================
+Caetano Veloso | Caetano Veloso
+Gilberto Gil | Gilberto Gil
+Chico Buarque | Chico Buarque
+Milton Nascimento | Milton Nascimento
+Elis Regina | Elis Regina
+Gal Costa | Gal Costa
+Maria Bethânia | Maria Bethânia
+Tom Jobim | Tom Jobim
+Vinicius de Moraes | Vinicius de Moraes
+João Gilberto | João Gilberto
+Djavan | Djavan
+Marisa Monte | Marisa Monte
+Tim Maia | Tim Maia
+Jorge Ben Jor | Jorge Ben Jor
+Roberto Carlos | Roberto Carlos
+Ney Matogrosso | Ney Matogrosso
+Cássia Eller | Cássia Eller
+Ana Carolina | Ana Carolina
+Seu Jorge | Seu Jorge
+Nando Reis | Nando Reis
+Lulu Santos | Lulu Santos
+Gonzaguinha | Gonzaguinha
+Belchior | Belchior
+Zé Ramalho | Zé Ramalho
+Alceu Valença | Alceu Valença
+Fagner | Fagner
+Simone | Simone
+Ivan Lins | Ivan Lins
+Toquinho | Toquinho
+Vanessa da Mata | Vanessa da Mata
+Tribalistas | Tribalistas
+Novos Baianos | Novos Baianos
+Adriana Calcanhotto | Adriana Calcanhotto
+Maria Gadú | Maria Gadú
+Liniker | Liniker
+Tiago Iorc | Tiago Iorc
+Anavitória | Anavitória
+Céu | Céu
+Erasmo Carlos | Erasmo Carlos
+Rita Lee | Rita Lee
+The Girl from Ipanema | Garota de Ipanema
+Águas de Março | Águas de Março
+Aquarela | Aquarela
+Construção | Construção
+Cálice | Cálice
+Sampa | Sampa
+Alegria, Alegria | Alegria, Alegria
+Tropicália | Tropicália
+O Leãozinho | O Leãozinho
+Você é Linda | Você é Linda
+Andar com Fé | Andar com Fé
+Aquele Abraço | Aquele Abraço
+Drão | Drão
+Travessia | Travessia
+Maria, Maria | Maria, Maria
+Como Nossos Pais | Como Nossos Pais
+O Bêbado e a Equilibrista | O Bêbado e a Equilibrista
+Flor de Lis | Flor de Lis
+Oceano | Oceano
+Sina | Sina
+Velha Infância | Velha Infância
+Já Sei Namorar | Já Sei Namorar
+Mas Que Nada | Mas Que Nada
+País Tropical | País Tropical
+Taj Mahal | Taj Mahal
+Azul da Cor do Mar | Azul da Cor do Mar
+Gostava Tanto de Você | Gostava Tanto de Você
+Sossego | Sossego
+Detalhes | Detalhes
+Emoções | Emoções
+Como É Grande o Meu Amor por Você | Como É Grande o Meu Amor por Você
+Coração de Estudante | Coração de Estudante
+Aquarela do Brasil | Aquarela do Brasil
+Chega de Saudade | Chega de Saudade
+Wave | Wave
+Eu Sei Que Vou Te Amar | Eu Sei Que Vou Te Amar
+O Que É, O Que É? | O Que É, O Que É?
+Tocando em Frente | Tocando em Frente
+Carinhoso | Carinhoso
+Sozinho | Sozinho
+Anunciação | Anunciação
+Chão de Giz | Chão de Giz
+Admirável Gado Novo | Admirável Gado Novo
+Como uma Onda | Como uma Onda
+Tempos Modernos | Tempos Modernos
+Ainda Bem | Ainda Bem
+Pétala | Pétala
+Força Estranha | Força Estranha
+Mucuripe | Mucuripe
+A Banda | A Banda
+Trem Bala | Trem Bala
+
+==================================================
+MUSIC - SAMBA | MÚSICA - SAMBA  (89)
+==================================================
+Zeca Pagodinho | Zeca Pagodinho
+Martinho da Vila | Martinho da Vila
+Beth Carvalho | Beth Carvalho
+Alcione | Alcione
+Cartola | Cartola
+Noel Rosa | Noel Rosa
+Adoniran Barbosa | Adoniran Barbosa
+Paulinho da Viola | Paulinho da Viola
+Clara Nunes | Clara Nunes
+Dona Ivone Lara | Dona Ivone Lara
+Jorge Aragão | Jorge Aragão
+Fundo de Quintal | Fundo de Quintal
+Arlindo Cruz | Arlindo Cruz
+Diogo Nogueira | Diogo Nogueira
+Teresa Cristina | Teresa Cristina
+Elza Soares | Elza Soares
+Jair Rodrigues | Jair Rodrigues
+Bezerra da Silva | Bezerra da Silva
+Almir Guineto | Almir Guineto
+Grupo Revelação | Grupo Revelação
+Exaltasamba | Exaltasamba
+Thiaguinho | Thiaguinho
+Péricles | Péricles
+Sorriso Maroto | Sorriso Maroto
+Raça Negra | Raça Negra
+Só Pra Contrariar | Só Pra Contrariar
+Molejo | Molejo
+Belo | Belo
+Ferrugem | Ferrugem
+Pixote | Pixote
+Art Popular | Art Popular
+Turma do Pagode | Turma do Pagode
+Dudu Nobre | Dudu Nobre
+Mart'nália | Mart'nália
+Leci Brandão | Leci Brandão
+Benito di Paula | Benito di Paula
+Dorival Caymmi | Dorival Caymmi
+Deixa a Vida Me Levar | Deixa a Vida Me Levar
+Trem das Onze | Trem das Onze
+Saudosa Maloca | Saudosa Maloca
+As Rosas Não Falam | As Rosas Não Falam
+O Mundo É um Moinho | O Mundo É um Moinho
+Tiro ao Álvaro | Tiro ao Álvaro
+Vou Festejar | Vou Festejar
+Coisinha do Pai | Coisinha do Pai
+Canta, Canta, Minha Gente | Canta, Canta, Minha Gente
+Mulheres | Mulheres
+O Show Tem Que Continuar | O Show Tem Que Continuar
+Conto de Areia | Conto de Areia
+Foi um Rio Que Passou em Minha Vida | Foi um Rio Que Passou em Minha Vida
+Sonho Meu | Sonho Meu
+Malandragem Dá um Tempo | Malandragem Dá um Tempo
+Brasil Pandeiro | Brasil Pandeiro
+Não Deixe o Samba Morrer | Não Deixe o Samba Morrer
+Meu Lugar | Meu Lugar
+Pé na Areia | Pé na Areia
+A Amizade | A Amizade
+Cheia de Manias | Cheia de Manias
+Tá Escrito | Tá Escrito
+Deixa Acontecer | Deixa Acontecer
+Me Apaixonei pela Pessoa Errada | Me Apaixonei pela Pessoa Errada
+O Samba da Minha Terra | O Samba da Minha Terra
+Nervos de Aço | Nervos de Aço
+Samba (dance) | Samba (dança)
+Pagode | Pagode
+Tambourine (pandeiro) | Pandeiro
+Cavaquinho | Cavaquinho
+Tamborim | Tamborim
+Cuíca | Cuíca
+Surdo (bass drum) | Surdo
+Roda de samba | Roda de samba
+Samba school | Escola de samba
+Master of ceremonies (Mestre-sala) | Mestre-sala
+Flag bearer (Porta-bandeira) | Porta-bandeira
+Samba dancer (Passista) | Passista
+Drum section (Bateria) | Bateria
+Sambadrome | Sambódromo
+Baianas wing | Ala das baianas
+Front commission | Comissão de frente
+Samba-enredo | Samba-enredo
+Carnival float | Carro alegórico
+Mangueira | Mangueira
+Portela | Portela
+Salgueiro | Salgueiro
+Beija-Flor | Beija-Flor
+Vila Isabel | Vila Isabel
+Unidos da Tijuca | Unidos da Tijuca
+Imperatriz Leopoldinense | Imperatriz Leopoldinense
+Lapa | Lapa
+
+==================================================
+MUSIC - FORRÓ | MÚSICA - FORRÓ  (76)
+==================================================
+Luiz Gonzaga | Luiz Gonzaga
+Dominguinhos | Dominguinhos
+Jackson do Pandeiro | Jackson do Pandeiro
+Elba Ramalho | Elba Ramalho
+Alceu Valença | Alceu Valença
+Falamansa | Falamansa
+Mastruz com Leite | Mastruz com Leite
+Calcinha Preta | Calcinha Preta
+Aviões do Forró | Aviões do Forró
+Wesley Safadão | Wesley Safadão
+Xand Avião | Xand Avião
+Solange Almeida | Solange Almeida
+Limão com Mel | Limão com Mel
+Flávio José | Flávio José
+Trio Nordestino | Trio Nordestino
+Genival Lacerda | Genival Lacerda
+Marinês | Marinês
+Santanna, o Cantador | Santanna, o Cantador
+Geraldo Azevedo | Geraldo Azevedo
+João Gomes | João Gomes
+Tarcísio do Acordeon | Tarcísio do Acordeon
+Mano Walter | Mano Walter
+Raí Saia Rodada | Raí Saia Rodada
+Jonas Esticado | Jonas Esticado
+Taty Girl | Taty Girl
+Waldonys | Waldonys
+Magníficos | Magníficos
+Cavaleiros do Forró | Cavaleiros do Forró
+Asa Branca | Asa Branca
+Xote das Meninas | Xote das Meninas
+Baião | Baião
+Assum Preto | Assum Preto
+Qui Nem Jiló | Qui Nem Jiló
+Olha pro Céu | Olha pro Céu
+Respeita Januário | Respeita Januário
+Xamego | Xamego
+A Vida do Viajante | A Vida do Viajante
+Pagode Russo | Pagode Russo
+Riacho do Navio | Riacho do Navio
+Forró no Escuro | Forró no Escuro
+Chiclete com Banana | Chiclete com Banana
+O Canto da Ema | O Canto da Ema
+Sebastiana | Sebastiana
+Xote dos Milagres | Xote dos Milagres
+Rindo à Toa | Rindo à Toa
+De Volta pro Aconchego | De Volta pro Aconchego
+Eu Só Quero um Xodó | Eu Só Quero um Xodó
+Isso Aqui Tá Bom Demais | Isso Aqui Tá Bom Demais
+Morena Tropicana | Morena Tropicana
+Banho de Cheiro | Banho de Cheiro
+Frevo Mulher | Frevo Mulher
+Meu Cenário | Meu Cenário
+Accordion | Sanfona
+Triangle | Triângulo
+Zabumba | Zabumba
+June Festival | Festa Junina
+São João | São João
+Square dance (Quadrilha) | Quadrilha
+Xaxado | Xaxado
+Xote | Xote
+Arrasta-pé | Arrasta-pé
+Forró pé de serra | Forró pé de serra
+Bonfire | Fogueira
+Leather hat | Chapéu de couro
+Caruaru | Caruaru
+Campina Grande | Campina Grande
+Sertão | Sertão
+Cangaceiro | Cangaceiro
+Lampião | Lampião
+Maria Bonita | Maria Bonita
+Vaquejada | Vaquejada
+Plaid shirt | Camisa xadrez
+Corn on the cob | Milho cozido
+Fake wedding (Casamento caipira) | Casamento caipira
+Fishing game (Pescaria) | Pescaria
+Dancing cheek to cheek | Dançar coladinho
+
+==================================================
+ANIMALS | ANIMAIS  (118)
+==================================================
+Dog | Cachorro
+Cat | Gato
+Horse | Cavalo
+Cow | Vaca
+Pig | Porco
+Sheep | Ovelha
+Goat | Cabra
+Chicken | Galinha
+Rooster | Galo
+Duck | Pato
+Rabbit | Coelho
+Mouse | Camundongo
+Rat | Rato
+Hamster | Hamster
+Guinea pig | Porquinho-da-índia
+Lion | Leão
+Tiger | Tigre
+Elephant | Elefante
+Giraffe | Girafa
+Zebra | Zebra
+Monkey | Macaco
+Gorilla | Gorila
+Bear | Urso
+Panda | Panda
+Koala | Coala
+Kangaroo | Canguru
+Wolf | Lobo
+Fox | Raposa
+Deer | Cervo
+Moose | Alce
+Camel | Camelo
+Hippo | Hipopótamo
+Rhino | Rinoceronte
+Crocodile | Crocodilo
+Alligator | Jacaré
+Snake | Cobra
+Turtle | Tartaruga
+Lizard | Lagarto
+Chameleon | Camaleão
+Frog | Sapo
+Shark | Tubarão
+Whale | Baleia
+Dolphin | Golfinho
+Octopus | Polvo
+Jellyfish | Água-viva
+Crab | Caranguejo
+Lobster | Lagosta
+Shrimp | Camarão
+Starfish | Estrela-do-mar
+Seahorse | Cavalo-marinho
+Seal | Foca
+Walrus | Morsa
+Penguin | Pinguim
+Polar bear | Urso-polar
+Eagle | Águia
+Owl | Coruja
+Parrot | Papagaio
+Macaw | Arara
+Toucan | Tucano
+Flamingo | Flamingo
+Peacock | Pavão
+Ostrich | Avestruz
+Hummingbird | Beija-flor
+Pigeon | Pombo
+Bat | Morcego
+Squirrel | Esquilo
+Hedgehog | Ouriço
+Porcupine | Porco-espinho
+Skunk | Gambá
+Raccoon | Guaxinim
+Beaver | Castor
+Otter | Lontra
+Sloth | Bicho-preguiça
+Anteater | Tamanduá
+Armadillo | Tatu
+Capybara | Capivara
+Jaguar | Onça-pintada
+Leopard | Leopardo
+Cheetah | Guepardo
+Panther | Pantera
+Hyena | Hiena
+Llama | Lhama
+Donkey | Burro
+Mule | Mula
+Bee | Abelha
+Butterfly | Borboleta
+Ant | Formiga
+Spider | Aranha
+Mosquito | Pernilongo
+Fly | Mosca
+Cockroach | Barata
+Ladybug | Joaninha
+Snail | Caracol
+Earthworm | Minhoca
+Scorpion | Escorpião
+Grasshopper | Gafanhoto
+Firefly | Vaga-lume
+Dragonfly | Libélula
+Caterpillar | Lagarta
+Goldfish | Peixinho dourado
+Piranha | Piranha
+Stingray | Arraia
+Pufferfish | Baiacu
+Swan | Cisne
+Turkey | Peru
+Vulture | Urubu
+Woodpecker | Pica-pau
+Crow | Corvo
+Pelican | Pelicano
+Seagull | Gaivota
+Platypus | Ornitorrinco
+Dinosaur | Dinossauro
+T-Rex | Tiranossauro Rex
+Mammoth | Mamute
+Manatee | Peixe-boi
+Tapir | Anta
+Ferret | Furão
+Mole | Toupeira
+
+==================================================
+FAMOUS PEOPLE | PESSOAS FAMOSAS  (103)
+==================================================
+Albert Einstein | Albert Einstein
+Isaac Newton | Isaac Newton
+Leonardo da Vinci | Leonardo da Vinci
+Michelangelo | Michelangelo
+Pablo Picasso | Pablo Picasso
+Vincent van Gogh | Vincent van Gogh
+Frida Kahlo | Frida Kahlo
+William Shakespeare | William Shakespeare
+Napoleon Bonaparte | Napoleão Bonaparte
+Julius Caesar | Júlio César
+Cleopatra | Cleópatra
+Christopher Columbus | Cristóvão Colombo
+Pedro Álvares Cabral | Pedro Álvares Cabral
+Emperor Pedro I | Dom Pedro I
+Tiradentes | Tiradentes
+Santos Dumont | Santos Dumont
+Charles Darwin | Charles Darwin
+Marie Curie | Marie Curie
+Nikola Tesla | Nikola Tesla
+Thomas Edison | Thomas Edison
+Galileo Galilei | Galileu Galilei
+Wolfgang Amadeus Mozart | Wolfgang Amadeus Mozart
+Ludwig van Beethoven | Ludwig van Beethoven
+Elvis Presley | Elvis Presley
+Michael Jackson | Michael Jackson
+Freddie Mercury | Freddie Mercury
+John Lennon | John Lennon
+Bob Marley | Bob Marley
+Madonna | Madonna
+Marilyn Monroe | Marilyn Monroe
+Charlie Chaplin | Charlie Chaplin
+Walt Disney | Walt Disney
+Steve Jobs | Steve Jobs
+Bill Gates | Bill Gates
+Elon Musk | Elon Musk
+Mark Zuckerberg | Mark Zuckerberg
+Oprah Winfrey | Oprah Winfrey
+Barack Obama | Barack Obama
+Abraham Lincoln | Abraham Lincoln
+Martin Luther King Jr. | Martin Luther King Jr.
+Nelson Mandela | Nelson Mandela
+Mahatma Gandhi | Mahatma Gandhi
+Mother Teresa | Madre Teresa
+Pope Francis | Papa Francisco
+Queen Elizabeth II | Rainha Elizabeth II
+Princess Diana | Princesa Diana
+Dalai Lama | Dalai Lama
+Pelé | Pelé
+Ayrton Senna | Ayrton Senna
+Neymar | Neymar
+Ronaldinho | Ronaldinho
+Lionel Messi | Lionel Messi
+Cristiano Ronaldo | Cristiano Ronaldo
+Michael Jordan | Michael Jordan
+Usain Bolt | Usain Bolt
+Serena Williams | Serena Williams
+Muhammad Ali | Muhammad Ali
+Michael Phelps | Michael Phelps
+Roger Federer | Roger Federer
+Rebeca Andrade | Rebeca Andrade
+Gisele Bündchen | Gisele Bündchen
+Xuxa | Xuxa
+Silvio Santos | Silvio Santos
+Faustão | Faustão
+Anitta | Anitta
+Ivete Sangalo | Ivete Sangalo
+Roberto Carlos | Roberto Carlos
+Taylor Swift | Taylor Swift
+Beyoncé | Beyoncé
+Lady Gaga | Lady Gaga
+Shakira | Shakira
+Leonardo DiCaprio | Leonardo DiCaprio
+Brad Pitt | Brad Pitt
+Angelina Jolie | Angelina Jolie
+Tom Cruise | Tom Cruise
+Will Smith | Will Smith
+Dwayne "The Rock" Johnson | Dwayne "The Rock" Johnson
+Keanu Reeves | Keanu Reeves
+Johnny Depp | Johnny Depp
+Meryl Streep | Meryl Streep
+Rodrigo Santoro | Rodrigo Santoro
+Wagner Moura | Wagner Moura
+Fernanda Montenegro | Fernanda Montenegro
+Fernanda Torres | Fernanda Torres
+Jô Soares | Jô Soares
+Chico Anysio | Chico Anysio
+Steven Spielberg | Steven Spielberg
+J.K. Rowling | J.K. Rowling
+Agatha Christie | Agatha Christie
+Machado de Assis | Machado de Assis
+Paulo Coelho | Paulo Coelho
+Monteiro Lobato | Monteiro Lobato
+Oscar Niemeyer | Oscar Niemeyer
+Stephen Hawking | Stephen Hawking
+Neil Armstrong | Neil Armstrong
+Yuri Gagarin | Yuri Gagarin
+Amelia Earhart | Amelia Earhart
+Frank Sinatra | Frank Sinatra
+Kim Kardashian | Kim Kardashian
+MrBeast | MrBeast
+Whindersson Nunes | Whindersson Nunes
+Galvão Bueno | Galvão Bueno
+Mr. Bean (Rowan Atkinson) | Mr. Bean (Rowan Atkinson)
+
+==================================================
+FICTIONAL CHARACTERS | PERSONAGENS FICTÍCIOS  (133)
+==================================================
+Mickey Mouse | Mickey Mouse
+Minnie Mouse | Minnie Mouse
+Donald Duck | Pato Donald
+Goofy | Pateta
+Winnie the Pooh | Ursinho Pooh
+Bugs Bunny | Pernalonga
+Tweety | Piu-Piu
+Sylvester | Frajola
+Tom and Jerry | Tom e Jerry
+Woody Woodpecker | Pica-Pau
+Pink Panther | Pantera Cor-de-Rosa
+Popeye | Popeye
+Scooby-Doo | Scooby-Doo
+Garfield | Garfield
+Snoopy | Snoopy
+Charlie Brown | Charlie Brown
+SpongeBob | Bob Esponja
+Patrick Star | Patrick Estrela
+Homer Simpson | Homer Simpson
+Bart Simpson | Bart Simpson
+Fred Flintstone | Fred Flintstone
+Shrek | Shrek
+Donkey (Shrek) | Burro (Shrek)
+Woody | Woody
+Buzz Lightyear | Buzz Lightyear
+Nemo | Nemo
+Dory | Dory
+Simba | Simba
+Timon and Pumbaa | Timão e Pumba
+Elsa | Elsa
+Olaf | Olaf
+Ariel | Ariel
+Snow White | Branca de Neve
+Rapunzel | Rapunzel
+Moana | Moana
+Stitch | Stitch
+Genie (Aladdin) | Gênio (Aladdin)
+Tinker Bell | Sininho
+Captain Hook | Capitão Gancho
+Pinocchio | Pinóquio
+Mad Hatter | Chapeleiro Maluco
+Cheshire Cat | Gato Risonho
+Little Red Riding Hood | Chapeuzinho Vermelho
+Big Bad Wolf | Lobo Mau
+Three Little Pigs | Três Porquinhos
+Goldilocks | Cachinhos Dourados
+Hansel and Gretel | João e Maria
+Ugly Duckling | Patinho Feio
+Robin Hood | Robin Hood
+Zorro | Zorro
+Tarzan | Tarzan
+Dracula | Drácula
+Frankenstein | Frankenstein
+Sherlock Holmes | Sherlock Holmes
+Harry Potter | Harry Potter
+Hermione Granger | Hermione Granger
+Voldemort | Voldemort
+Dumbledore | Dumbledore
+Gandalf | Gandalf
+Frodo | Frodo
+Gollum | Gollum
+Darth Vader | Darth Vader
+Luke Skywalker | Luke Skywalker
+Yoda | Yoda
+Chewbacca | Chewbacca
+R2-D2 | R2-D2
+Superman | Superman
+Batman | Batman
+The Joker | Coringa
+Wonder Woman | Mulher-Maravilha
+Spider-Man | Homem-Aranha
+Iron Man | Homem de Ferro
+Captain America | Capitão América
+Hulk | Hulk
+Thor | Thor
+Black Widow | Viúva Negra
+Wolverine | Wolverine
+Deadpool | Deadpool
+Thanos | Thanos
+Groot | Groot
+Mario | Mario
+Luigi | Luigi
+Princess Peach | Princesa Peach
+Bowser | Bowser
+Sonic | Sonic
+Pac-Man | Pac-Man
+Pikachu | Pikachu
+Lara Croft | Lara Croft
+Jack Sparrow | Jack Sparrow
+Indiana Jones | Indiana Jones
+James Bond | James Bond
+Rocky Balboa | Rocky Balboa
+Forrest Gump | Forrest Gump
+E.T. | E.T.
+King Kong | King Kong
+Godzilla | Godzilla
+Barbie | Barbie
+Ken | Ken
+Smurfs | Smurfs
+Mônica (Turma da Mônica) | Mônica (Turma da Mônica)
+Cebolinha | Cebolinha
+Cascão | Cascão
+Magali | Magali
+Chico Bento | Chico Bento
+Emília | Emília
+Saci-Pererê | Saci
+Curupira | Curupira
+Cuca | Cuca
+Chaves | Chaves
+Seu Madruga | Seu Madruga
+Didi Mocó | Didi Mocó
+Santa Claus | Papai Noel
+Easter Bunny | Coelhinho da Páscoa
+Tooth Fairy | Fada do Dente
+Wednesday Addams | Wandinha Addams
+The Grinch | O Grinch
+Gru | Gru
+Peppa Pig | Peppa Pig
+Hello Kitty | Hello Kitty
+Elmo | Elmo
+Cookie Monster | Come-Come
+Kermit the Frog | Caco, o Sapo
+Jack Skellington | Jack Skellington
+Edward Scissorhands | Edward Mãos de Tesoura
+Willy Wonka | Willy Wonka
+Mary Poppins | Mary Poppins
+Cruella | Cruella
+Maleficent | Malévola
+Ursula | Úrsula
+Blackbeard | Barba Negra
+Little Prince | O Pequeno Príncipe
+Puss in Boots | Gato de Botas
+Cinderella | Cinderela
+
+==================================================
+HUMAN BODY | CORPO HUMANO  (90)
+==================================================
+Head | Cabeça
+Hair | Cabelo
+Face | Rosto
+Forehead | Testa
+Eyebrow | Sobrancelha
+Eyelash | Cílio
+Eye | Olho
+Ear | Orelha
+Nose | Nariz
+Nostril | Narina
+Cheek | Bochecha
+Mouth | Boca
+Lips | Lábios
+Tongue | Língua
+Teeth | Dentes
+Chin | Queixo
+Jaw | Mandíbula
+Beard | Barba
+Mustache | Bigode
+Neck | Pescoço
+Throat | Garganta
+Shoulder | Ombro
+Arm | Braço
+Elbow | Cotovelo
+Wrist | Pulso
+Hand | Mão
+Palm | Palma da mão
+Finger | Dedo
+Thumb | Polegar
+Fingernail | Unha
+Knuckle | Nó dos dedos
+Fist | Punho
+Chest | Peito
+Belly | Barriga
+Belly button | Umbigo
+Back | Costas
+Waist | Cintura
+Hip | Quadril
+Butt | Bumbum
+Leg | Perna
+Thigh | Coxa
+Knee | Joelho
+Shin | Canela
+Calf | Panturrilha
+Ankle | Tornozelo
+Heel | Calcanhar
+Foot | Pé
+Toe | Dedo do pé
+Armpit | Axila
+Skin | Pele
+Bone | Osso
+Skeleton | Esqueleto
+Skull | Crânio
+Spine | Coluna
+Rib | Costela
+Muscle | Músculo
+Biceps | Bíceps
+Six-pack | Tanquinho
+Heart | Coração
+Lungs | Pulmões
+Brain | Cérebro
+Stomach | Estômago
+Liver | Fígado
+Kidney | Rim
+Intestine | Intestino
+Bladder | Bexiga
+Blood | Sangue
+Vein | Veia
+Freckles | Sardas
+Dimples | Covinhas
+Wrinkle | Ruga
+Pimple | Espinha
+Scar | Cicatriz
+Mole | Pinta
+Earlobe | Lóbulo da orelha
+Eardrum | Tímpano
+Pupil | Pupila
+Tonsils | Amígdalas
+Appendix | Apêndice
+Adam's apple | Pomo de adão
+Goosebumps | Arrepio
+Tear | Lágrima
+Sweat | Suor
+Saliva | Saliva
+Fingerprint | Impressão digital
+Wisdom tooth | Dente do siso
+Baby tooth | Dente de leite
+Ponytail | Rabo de cavalo
+Braids | Tranças
+Bun | Coque
+
+==================================================
+LANDMARKS | PONTOS TURÍSTICOS  (79)
+==================================================
+Christ the Redeemer | Cristo Redentor
+Sugarloaf Mountain | Pão de Açúcar
+Maracanã | Maracanã
+Copacabana Beach | Praia de Copacabana
+Iguazu Falls | Cataratas do Iguaçu
+Pelourinho | Pelourinho
+Selarón Steps | Escadaria Selarón
+Ibirapuera Park | Parque Ibirapuera
+Paulista Avenue | Avenida Paulista
+MASP | MASP
+National Congress | Congresso Nacional
+Lençóis Maranhenses | Lençóis Maranhenses
+Fernando de Noronha | Fernando de Noronha
+Amazon Rainforest | Floresta Amazônica
+Pantanal | Pantanal
+Meeting of Waters | Encontro das Águas
+Eiffel Tower | Torre Eiffel
+Louvre Museum | Museu do Louvre
+Arc de Triomphe | Arco do Triunfo
+Notre-Dame Cathedral | Catedral de Notre-Dame
+Statue of Liberty | Estátua da Liberdade
+Empire State Building | Empire State Building
+Times Square | Times Square
+Central Park | Central Park
+Golden Gate Bridge | Ponte Golden Gate
+Hollywood Sign | Letreiro de Hollywood
+Hollywood Walk of Fame | Calçada da Fama
+Mount Rushmore | Monte Rushmore
+Grand Canyon | Grand Canyon
+Niagara Falls | Cataratas do Niágara
+White House | Casa Branca
+Big Ben | Big Ben
+London Eye | London Eye
+Tower Bridge | Tower Bridge
+Buckingham Palace | Palácio de Buckingham
+Stonehenge | Stonehenge
+Colosseum | Coliseu
+Leaning Tower of Pisa | Torre de Pisa
+Trevi Fountain | Fontana di Trevi
+Sistine Chapel | Capela Sistina
+St. Peter's Basilica | Basílica de São Pedro
+Venice Canals | Canais de Veneza
+Sagrada Família | Sagrada Família
+Acropolis | Acrópole
+Parthenon | Partenon
+Great Wall of China | Muralha da China
+Forbidden City | Cidade Proibida
+Taj Mahal | Taj Mahal
+Pyramids of Giza | Pirâmides de Gizé
+Great Sphinx | Esfinge
+Machu Picchu | Machu Picchu
+Chichén Itzá | Chichén Itzá
+Easter Island Moai | Moais da Ilha de Páscoa
+Sydney Opera House | Ópera de Sydney
+Great Barrier Reef | Grande Barreira de Corais
+Mount Everest | Monte Everest
+Mount Fuji | Monte Fuji
+Burj Khalifa | Burj Khalifa
+Petra | Petra
+Angkor Wat | Angkor Wat
+Kremlin | Kremlin
+Red Square | Praça Vermelha
+Brandenburg Gate | Portão de Brandemburgo
+Berlin Wall | Muro de Berlim
+Neuschwanstein Castle | Castelo de Neuschwanstein
+Belém Tower | Torre de Belém
+Alhambra | Alhambra
+Mount Kilimanjaro | Monte Kilimanjaro
+Victoria Falls | Cataratas Vitória
+Uluru | Uluru
+Hagia Sophia | Santa Sofia
+Las Vegas Strip | Las Vegas Strip
+Disneyland | Disneylândia
+Galápagos Islands | Ilhas Galápagos
+Atacama Desert | Deserto do Atacama
+Perito Moreno Glacier | Geleira Perito Moreno
+Salar de Uyuni | Salar de Uyuni
+Santorini | Santorini
+Dead Sea | Mar Morto
+
+==================================================
+SCIENCE | CIÊNCIA  (94)
+==================================================
+Atom | Átomo
+Molecule | Molécula
+Cell | Célula
+DNA | DNA
+Gene | Gene
+Bacteria | Bactéria
+Virus | Vírus
+Vaccine | Vacina
+Microscope | Microscópio
+Telescope | Telescópio
+Test tube | Tubo de ensaio
+Magnet | Ímã
+Gravity | Gravidade
+Electricity | Eletricidade
+Energy | Energia
+Friction | Atrito
+Oxygen | Oxigênio
+Hydrogen | Hidrogênio
+Carbon | Carbono
+Periodic table | Tabela periódica
+Chemical reaction | Reação química
+Explosion | Explosão
+Volcanic eruption | Erupção vulcânica
+Tectonic plates | Placas tectônicas
+Fossil | Fóssil
+Planet | Planeta
+Solar System | Sistema Solar
+Galaxy | Galáxia
+Black hole | Buraco negro
+Comet | Cometa
+Asteroid | Asteroide
+Meteor | Meteoro
+Satellite | Satélite
+Rocket | Foguete
+Mars | Marte
+Jupiter | Júpiter
+Saturn | Saturno
+Earth | Terra
+Venus | Vênus
+Mercury | Mercúrio
+Neptune | Netuno
+Uranus | Urano
+Pluto | Plutão
+Big Bang | Big Bang
+Evolution | Evolução
+Photosynthesis | Fotossíntese
+Food chain | Cadeia alimentar
+Ecosystem | Ecossistema
+Climate change | Mudança climática
+Greenhouse effect | Efeito estufa
+Water cycle | Ciclo da água
+Evaporation | Evaporação
+Condensation | Condensação
+Prism | Prisma
+Laser | Laser
+X-ray | Raio-X
+Radiation | Radiação
+Battery | Pilha
+Electric circuit | Circuito elétrico
+Light bulb | Lâmpada
+Thermometer | Termômetro
+Artificial intelligence | Inteligência artificial
+Computer | Computador
+Internet | Internet
+Clone | Clone
+Experiment | Experimento
+Hypothesis | Hipótese
+Lab coat | Jaleco
+Safety goggles | Óculos de proteção
+Beaker | Béquer
+Bunsen burner | Bico de Bunsen
+Formula | Fórmula
+E=mc² | E=mc²
+Pendulum | Pêndulo
+Lever | Alavanca
+Pulley | Polia
+Speed of light | Velocidade da luz
+Sound waves | Ondas sonoras
+Static electricity | Eletricidade estática
+Solar panel | Painel solar
+Wind turbine | Turbina eólica
+Nuclear power plant | Usina nuclear
+Metamorphosis | Metamorfose
+Blood type | Tipo sanguíneo
+Neuron | Neurônio
+Solar eclipse | Eclipse solar
+Moon phases | Fases da Lua
+Tide | Maré
+Ozone layer | Camada de ozônio
+Lava | Lava
+Crystal | Cristal
+Magnifying glass | Lupa
+Petri dish | Placa de Petri
+Mad scientist | Cientista maluco
+
+==================================================
+CLOTHING | ROUPAS  (87)
+==================================================
+T-shirt | Camiseta
+Shirt | Camisa
+Pants | Calça
+Jeans | Calça jeans
+Shorts | Bermuda
+Skirt | Saia
+Dress | Vestido
+Jacket | Jaqueta
+Coat | Casaco
+Sweater | Suéter
+Hoodie | Moletom com capuz
+Vest | Colete
+Suit | Terno
+Tie | Gravata
+Bow tie | Gravata-borboleta
+Tuxedo | Smoking
+Wedding dress | Vestido de noiva
+Pajamas | Pijama
+Bathrobe | Roupão
+Underwear | Roupa íntima
+Bra | Sutiã
+Socks | Meias
+Shoes | Sapatos
+Sneakers | Tênis
+Boots | Botas
+Sandals | Sandálias
+Flip-flops | Chinelo
+High heels | Salto alto
+Slippers | Pantufas
+Hat | Chapéu
+Cap | Boné
+Beanie | Gorro
+Helmet | Capacete
+Crown | Coroa
+Scarf | Cachecol
+Gloves | Luvas
+Belt | Cinto
+Suspenders | Suspensórios
+Sunglasses | Óculos de sol
+Glasses | Óculos
+Wristwatch | Relógio de pulso
+Necklace | Colar
+Earrings | Brincos
+Ring | Anel
+Bracelet | Pulseira
+Backpack | Mochila
+Purse | Bolsa
+Wallet | Carteira
+Raincoat | Capa de chuva
+Swimsuit | Maiô
+Bikini | Biquíni
+Swim trunks | Sunga
+Overalls | Macacão
+Apron | Avental
+Uniform | Uniforme
+Kimono | Quimono
+Cape | Capa
+Mask | Máscara
+Tiara | Tiara
+Hair tie | Elástico de cabelo
+Headband | Faixa de cabelo
+Bandana | Bandana
+Turban | Turbante
+Poncho | Poncho
+Tank top | Regata
+Crop top | Cropped
+Leggings | Legging
+Tutu | Tutu de balé
+Cowboy hat | Chapéu de caubói
+Top hat | Cartola
+Beret | Boina
+Sombrero | Sombrero
+Veil | Véu
+Diaper | Fralda
+Bib | Babador
+Rain boots | Galochas
+Ballet slippers | Sapatilhas de balé
+Soccer cleats | Chuteira
+Shin guards | Caneleira
+Corset | Espartilho
+Fanny pack | Pochete
+Toga | Toga
+Kilt | Kilt (saia escocesa)
+Scrubs | Pijama cirúrgico
+Hair bow | Laço de cabelo
+Ugly Christmas sweater | Suéter de Natal
+Superhero costume | Fantasia de super-herói
+
+==================================================
+CONCEPTS | CONCEITOS  (98)
+==================================================
+Freedom | Liberdade
+Peace | Paz
+War | Guerra
+Friendship | Amizade
+Hate | Ódio
+Fear | Medo
+Hope | Esperança
+Faith | Fé
+Justice | Justiça
+Truth | Verdade
+Lie | Mentira
+Time | Tempo
+Infinity | Infinito
+Luck | Sorte
+Bad luck | Azar
+Karma | Carma
+Destiny | Destino
+Memory | Memória
+Nostalgia | Nostalgia
+Longing | Saudade
+Happiness | Felicidade
+Sadness | Tristeza
+Loneliness | Solidão
+Jealousy | Ciúme
+Envy | Inveja
+Greed | Ganância
+Pride | Orgulho
+Shame | Vergonha
+Guilt | Culpa
+Revenge | Vingança
+Forgiveness | Perdão
+Patience | Paciência
+Courage | Coragem
+Wisdom | Sabedoria
+Knowledge | Conhecimento
+Creativity | Criatividade
+Imagination | Imaginação
+Inspiration | Inspiração
+Success | Sucesso
+Failure | Fracasso
+Power | Poder
+Wealth | Riqueza
+Poverty | Pobreza
+Democracy | Democracia
+Equality | Igualdade
+Silence | Silêncio
+Chaos | Caos
+Balance | Equilíbrio
+Beauty | Beleza
+Life | Vida
+Death | Morte
+Birth | Nascimento
+Childhood | Infância
+Old age | Velhice
+Youth | Juventude
+Family | Família
+Home | Lar
+Teamwork | Trabalho em equipe
+Competition | Competição
+Victory | Vitória
+Defeat | Derrota
+Change | Mudança
+Growth | Crescimento
+Stress | Estresse
+Laziness | Preguiça
+Procrastination | Procrastinação
+Déjà vu | Déjà vu
+Irony | Ironia
+Sarcasm | Sarcasmo
+Trust | Confiança
+Betrayal | Traição
+Heartbreak | Coração partido
+Passion | Paixão
+Curiosity | Curiosidade
+Boredom | Tédio
+Surprise | Surpresa
+Danger | Perigo
+Safety | Segurança
+Speed | Velocidade
+Distance | Distância
+Weight | Peso
+Rhythm | Ritmo
+Harmony | Harmonia
+Fashion | Moda
+Art | Arte
+History | História
+Future | Futuro
+Past | Passado
+Fake news | Fake news
+Social media | Redes sociais
+Globalization | Globalização
+Recycling | Reciclagem
+Sustainability | Sustentabilidade
+Midlife crisis | Crise de meia-idade
+Love at first sight | Amor à primeira vista
+Writer's block | Bloqueio criativo
+Jet lag | Jet lag
+FOMO | FOMO
+
+==================================================
+FOOD | COMIDA  (126)
+==================================================
+Pizza | Pizza
+Hamburger | Hambúrguer
+Hot dog | Cachorro-quente
+French fries | Batata frita
+Sushi | Sushi
+Spaghetti | Espaguete
+Lasagna | Lasanha
+Taco | Taco
+Burrito | Burrito
+Sandwich | Sanduíche
+Salad | Salada
+Soup | Sopa
+Rice and beans | Arroz e feijão
+Feijoada | Feijoada
+Brigadeiro | Brigadeiro
+Cheese bread | Pão de queijo
+Coxinha | Coxinha
+Pastel | Pastel
+Açaí | Açaí
+Acarajé | Acarajé
+Moqueca | Moqueca
+Tapioca | Tapioca
+Farofa | Farofa
+Picanha | Picanha
+Quindim | Quindim
+Flan | Pudim
+Paçoca | Paçoca
+Pamonha | Pamonha
+Canjica | Canjica
+Couscous | Cuscuz
+Esfiha | Esfiha
+Kibbeh | Kibe
+Feijão tropeiro | Feijão tropeiro
+Baião de dois | Baião de dois
+Cassava | Mandioca
+Popcorn | Pipoca
+Cotton candy | Algodão-doce
+Ice cream | Sorvete
+Popsicle | Picolé
+Chocolate | Chocolate
+Birthday cake | Bolo de aniversário
+Cupcake | Cupcake
+Donut | Rosquinha
+Cookie | Biscoito
+Pancake | Panqueca
+Waffle | Waffle
+Croissant | Croissant
+Bread | Pão
+Cheese | Queijo
+Butter | Manteiga
+Egg | Ovo
+Fried egg | Ovo frito
+Omelet | Omelete
+Bacon | Bacon
+Sausage | Linguiça
+Ham | Presunto
+Steak | Bife
+Fried chicken | Frango frito
+Grilled fish | Peixe grelhado
+Meatballs | Almôndegas
+Mashed potatoes | Purê de batata
+Apple | Maçã
+Banana | Banana
+Orange | Laranja
+Grapes | Uvas
+Strawberry | Morango
+Watermelon | Melancia
+Pineapple | Abacaxi
+Mango | Manga
+Papaya | Mamão
+Coconut | Coco
+Lemon | Limão
+Avocado | Abacate
+Cherry | Cereja
+Peach | Pêssego
+Pear | Pera
+Kiwi | Kiwi
+Guava | Goiaba
+Passion fruit | Maracujá
+Cashew fruit | Caju
+Jabuticaba | Jabuticaba
+Carrot | Cenoura
+Potato | Batata
+Tomato | Tomate
+Onion | Cebola
+Garlic | Alho
+Corn | Milho
+Broccoli | Brócolis
+Lettuce | Alface
+Cucumber | Pepino
+Pumpkin | Abóbora
+Eggplant | Berinjela
+Mushroom | Cogumelo
+Bell pepper | Pimentão
+Chili pepper | Pimenta
+Coffee | Café
+Tea | Chá
+Milk | Leite
+Juice | Suco
+Soda | Refrigerante
+Beer | Cerveja
+Wine | Vinho
+Caipirinha | Caipirinha
+Milkshake | Milkshake
+Coconut water | Água de coco
+Honey | Mel
+Jam | Geleia
+Peanut butter | Pasta de amendoim
+Ketchup | Ketchup
+Mustard | Mostarda
+Mayonnaise | Maionese
+Cereal | Cereal
+Yogurt | Iogurte
+Lollipop | Pirulito
+Chewing gum | Chiclete
+Candy | Bala
+Marshmallow | Marshmallow
+Nachos | Nachos
+Ramen | Lámen
+Dumplings | Guioza
+Paella | Paella
+Fondue | Fondue
+Gelatin | Gelatina
+Pie | Torta
+Cheesecake | Cheesecake
+Sundae | Sundae
+
+==================================================
+OBJECTS | OBJETOS  (125)
+==================================================
+Chair | Cadeira
+Table | Mesa
+Bed | Cama
+Sofa | Sofá
+Lamp | Abajur
+Mirror | Espelho
+Clock | Relógio
+Cell phone | Celular
+Laptop | Notebook
+TV | Televisão
+Remote control | Controle remoto
+Camera | Câmera
+Headphones | Fones de ouvido
+Book | Livro
+Pen | Caneta
+Pencil | Lápis
+Eraser | Borracha
+Scissors | Tesoura
+Glue | Cola
+Notebook | Caderno
+Key | Chave
+Padlock | Cadeado
+Door | Porta
+Window | Janela
+Umbrella | Guarda-chuva
+Toothbrush | Escova de dentes
+Toothpaste | Pasta de dente
+Comb | Pente
+Hair dryer | Secador de cabelo
+Towel | Toalha
+Soap | Sabonete
+Shampoo | Xampu
+Toilet | Vaso sanitário
+Toilet paper | Papel higiênico
+Bathtub | Banheira
+Pillow | Travesseiro
+Blanket | Cobertor
+Alarm clock | Despertador
+Fan | Ventilador
+Air conditioner | Ar-condicionado
+Fridge | Geladeira
+Stove | Fogão
+Microwave | Micro-ondas
+Blender | Liquidificador
+Toaster | Torradeira
+Frying pan | Frigideira
+Pot | Panela
+Knife | Faca
+Fork | Garfo
+Spoon | Colher
+Plate | Prato
+Cup | Xícara
+Glass | Copo
+Bottle | Garrafa
+Teapot | Bule
+Washing machine | Máquina de lavar
+Clothes iron | Ferro de passar
+Broom | Vassoura
+Bucket | Balde
+Trash can | Lixeira
+Vacuum cleaner | Aspirador de pó
+Ladder | Escada
+Guitar | Violão
+Piano | Piano
+Drum | Tambor
+Violin | Violino
+Trumpet | Trompete
+Microphone | Microfone
+Ball | Bola
+Doll | Boneca
+Teddy bear | Ursinho de pelúcia
+Yo-yo | Ioiô
+Rubik's Cube | Cubo mágico
+Dice | Dados
+Playing cards | Baralho
+Chessboard | Tabuleiro de xadrez
+Game controller | Controle de videogame
+Envelope | Envelope
+Stamp | Selo
+Calendar | Calendário
+Globe | Globo terrestre
+Compass | Bússola
+Flashlight | Lanterna
+Charger | Carregador
+Binoculars | Binóculos
+Hourglass | Ampulheta
+Vase | Vaso de flores
+Picture frame | Porta-retrato
+Painting | Quadro
+Rug | Tapete
+Curtain | Cortina
+Hanger | Cabide
+Clothespin | Prendedor de roupa
+Suitcase | Mala
+Coin | Moeda
+Piggy bank | Cofrinho
+Credit card | Cartão de crédito
+Diamond | Diamante
+Trophy | Troféu
+Medal | Medalha
+Sword | Espada
+Shield | Escudo
+Bow and arrow | Arco e flecha
+Anchor | Âncora
+Bell | Sino
+Whistle | Apito
+Megaphone | Megafone
+Baby bottle | Mamadeira
+Pacifier | Chupeta
+Stroller | Carrinho de bebê
+Crib | Berço
+Wheelchair | Cadeira de rodas
+Crutches | Muletas
+Syringe | Seringa
+Bandage | Curativo
+Mailbox | Caixa de correio
+Doorbell | Campainha
+Birdcage | Gaiola
+Fishbowl | Aquário de peixe
+Hammock | Rede
+Rocking chair | Cadeira de balanço
+Chandelier | Lustre
+Fireplace | Lareira
+Paper airplane | Avião de papel
+Snow globe | Globo de neve
+
+==================================================
+SPORTS | ESPORTES  (78)
+==================================================
+Soccer | Futebol
+Basketball | Basquete
+Volleyball | Vôlei
+Beach volleyball | Vôlei de praia
+Tennis | Tênis
+Table tennis | Tênis de mesa
+Badminton | Badminton
+Baseball | Beisebol
+American football | Futebol americano
+Rugby | Rúgbi
+Handball | Handebol
+Futsal | Futsal
+Footvolley | Futevôlei
+Golf | Golfe
+Swimming | Natação
+Diving | Saltos ornamentais
+Water polo | Polo aquático
+Surfing | Surfe
+Skateboarding | Skate
+Snowboarding | Snowboard
+Skiing | Esqui
+Ice hockey | Hóquei no gelo
+Figure skating | Patinação artística
+Boxing | Boxe
+MMA | MMA
+Judo | Judô
+Karate | Caratê
+Taekwondo | Taekwondo
+Jiu-jitsu | Jiu-jitsu
+Capoeira | Capoeira
+Wrestling | Luta livre
+Fencing | Esgrima
+Archery | Tiro com arco
+Gymnastics | Ginástica artística
+Rhythmic gymnastics | Ginástica rítmica
+Weightlifting | Levantamento de peso
+Running | Corrida
+Hurdles | Corrida com barreiras
+High jump | Salto em altura
+Long jump | Salto em distância
+Pole vault | Salto com vara
+Javelin throw | Lançamento de dardo
+Shot put | Arremesso de peso
+Cycling | Ciclismo
+BMX | BMX
+Formula 1 | Fórmula 1
+MotoGP | MotoGP
+Rowing | Remo
+Canoeing | Canoagem
+Sailing | Vela
+Kitesurfing | Kitesurf
+Equestrian | Hipismo
+Polo | Polo
+Bowling | Boliche
+Snooker | Sinuca
+Darts | Dardos
+Chess | Xadrez
+Rock climbing | Escalada
+Parkour | Parkour
+Paragliding | Parapente
+Skydiving | Paraquedismo
+Triathlon | Triatlo
+Cricket | Críquete
+Curling | Curling
+Sumo | Sumo
+Yoga | Ioga
+Pilates | Pilates
+CrossFit | CrossFit
+Beach tennis | Beach tennis
+Padel | Padel
+Squash | Squash
+Bobsled | Bobsled
+Breakdancing | Breaking
+Artistic swimming | Nado artístico
+Tug of war | Cabo de guerra
+Sack race | Corrida de saco
+Rodeo bull riding | Montaria em touro
+Arm wrestling | Queda de braço
+
+==================================================
+TOOLS | FERRAMENTAS  (73)
+==================================================
+Hammer | Martelo
+Screwdriver | Chave de fenda
+Wrench | Chave inglesa
+Pliers | Alicate
+Hand saw | Serrote
+Chainsaw | Motosserra
+Drill | Furadeira
+Nail | Prego
+Screw | Parafuso
+Nut (for a bolt) | Porca
+Tape measure | Fita métrica
+Spirit level | Nível
+Ruler | Régua
+Shovel | Pá
+Rake | Ancinho
+Hoe | Enxada
+Pickaxe | Picareta
+Axe | Machado
+Wheelbarrow | Carrinho de mão
+Watering can | Regador
+Garden hose | Mangueira
+Pruning shears | Tesoura de poda
+Lawn mower | Cortador de grama
+Paintbrush | Pincel
+Paint roller | Rolo de pintura
+Sandpaper | Lixa
+Chisel | Formão
+Crowbar | Pé de cabra
+Sledgehammer | Marreta
+Trowel | Colher de pedreiro
+Duct tape | Silver tape
+Glue gun | Pistola de cola quente
+Soldering iron | Ferro de solda
+Toolbox | Caixa de ferramentas
+Workbench | Bancada
+Bench vise | Torno de bancada
+Clamp | Grampo
+Allen key | Chave Allen
+Stapler | Grampeador
+Utility knife | Estilete
+Funnel | Funil
+Air pump | Bomba de ar
+Car jack | Macaco de carro
+Spray paint | Tinta spray
+Sponge | Esponja
+Mop | Esfregão
+Squeegee | Rodo
+Plunger | Desentupidor
+Fishing rod | Vara de pescar
+Fishing net | Rede de pesca
+Protractor | Transferidor
+Calculator | Calculadora
+Tweezers | Pinça
+Needle and thread | Agulha e linha
+Sewing machine | Máquina de costura
+Rolling pin | Rolo de massa
+Whisk | Batedor (fouet)
+Can opener | Abridor de latas
+Corkscrew | Saca-rolhas
+Grater | Ralador
+Spatula | Espátula
+Ladle | Concha
+Kitchen tongs | Pegador
+Vegetable peeler | Descascador
+Anvil | Bigorna
+Pitchfork | Forcado
+Scythe | Foice
+Stethoscope | Estetoscópio
+Hole punch | Furador de papel
+Pocket knife | Canivete
+Swiss army knife | Canivete suíço
+Pressure washer | Lavadora de alta pressão
+Welding torch | Maçarico
+
+==================================================
+TRANSPORTATION | TRANSPORTES  (73)
+==================================================
+Car | Carro
+Bus | Ônibus
+Truck | Caminhão
+Motorcycle | Moto
+Bicycle | Bicicleta
+Kick scooter | Patinete
+Skateboard | Skate
+Train | Trem
+Tram | Bonde
+Airplane | Avião
+Helicopter | Helicóptero
+Space shuttle | Ônibus espacial
+Hot air balloon | Balão de ar quente
+Blimp | Dirigível
+Boat | Barco
+Ship | Navio
+Cruise ship | Navio de cruzeiro
+Sailboat | Veleiro
+Canoe | Canoa
+Kayak | Caiaque
+Raft | Bote
+Submarine | Submarino
+Jet ski | Jet ski
+Yacht | Iate
+Ferry | Balsa
+Gondola | Gôndola
+Taxi | Táxi
+Limousine | Limusine
+Ambulance | Ambulância
+Fire truck | Caminhão de bombeiros
+Police car | Viatura de polícia
+School bus | Ônibus escolar
+Tractor | Trator
+Excavator | Escavadeira
+Crane | Guindaste
+Forklift | Empilhadeira
+Garbage truck | Caminhão de lixo
+Tow truck | Guincho
+Tank | Tanque de guerra
+Jeep | Jeep
+Van | Van
+Pickup truck | Caminhonete
+Convertible | Conversível
+Race car | Carro de corrida
+Go-kart | Kart
+Monster truck | Monster truck
+Golf cart | Carrinho de golfe
+Segway | Segway
+Unicycle | Monociclo
+Tandem bicycle | Bicicleta de dois lugares
+Tricycle | Triciclo
+Roller skates | Patins
+Horse-drawn carriage | Carruagem
+Cable car | Teleférico
+Escalator | Escada rolante
+Zipline | Tirolesa
+Sled | Trenó
+Snowmobile | Moto de neve
+Bullet train | Trem-bala
+Steam locomotive | Maria-fumaça
+Motorhome | Motorhome
+Rickshaw | Riquixá
+Tuk-tuk | Tuk-tuk
+Motorcycle taxi | Mototáxi
+Drone | Drone
+Parachute | Paraquedas
+Glider | Planador
+Seaplane | Hidroavião
+Pedal boat | Pedalinho
+Hoverboard | Hoverboard
+Flying carpet | Tapete voador
+Camel caravan | Caravana de camelos
+Dog sled | Trenó puxado por cães
+
+==================================================
+ANIME | ANIME  (94)
+==================================================
+Naruto | Naruto
+Dragon Ball | Dragon Ball
+Dragon Ball Z | Dragon Ball Z
+One Piece | One Piece
+Pokémon | Pokémon
+Sailor Moon | Sailor Moon
+Attack on Titan | Ataque dos Titãs
+Death Note | Death Note
+Demon Slayer | Demon Slayer
+My Hero Academia | My Hero Academia
+Spirited Away | A Viagem de Chihiro
+My Neighbor Totoro | Meu Amigo Totoro
+Howl's Moving Castle | O Castelo Animado
+Princess Mononoke | Princesa Mononoke
+Kiki's Delivery Service | O Serviço de Entregas da Kiki
+Ponyo | Ponyo: Uma Amizade que Veio do Mar
+Your Name | Your Name (Kimi no Na wa)
+Saint Seiya | Os Cavaleiros do Zodíaco
+Yu Yu Hakusho | Yu Yu Hakusho
+Fullmetal Alchemist | Fullmetal Alchemist
+Cowboy Bebop | Cowboy Bebop
+Hunter x Hunter | Hunter x Hunter
+Bleach | Bleach
+Jujutsu Kaisen | Jujutsu Kaisen
+Chainsaw Man | Chainsaw Man
+Spy x Family | Spy x Family
+Tokyo Ghoul | Tokyo Ghoul
+Sword Art Online | Sword Art Online
+Digimon | Digimon
+Yu-Gi-Oh! | Yu-Gi-Oh!
+Captain Tsubasa | Super Campeões
+Cardcaptor Sakura | Sakura Card Captors
+Neon Genesis Evangelion | Neon Genesis Evangelion
+One Punch Man | One Punch Man
+Haikyu!! | Haikyu!!
+Blue Lock | Blue Lock
+Dr. Stone | Dr. Stone
+Frieren | Frieren
+Solo Leveling | Solo Leveling
+Akira | Akira
+Ghost in the Shell | O Fantasma do Futuro
+Inuyasha | Inuyasha
+Ranma ½ | Ranma ½
+Doraemon | Doraemon
+Hamtaro | Hamtaro
+Beyblade | Beyblade
+Shaman King | Shaman King
+Rurouni Kenshin | Samurai X
+Fairy Tail | Fairy Tail
+Black Clover | Black Clover
+Mob Psycho 100 | Mob Psycho 100
+Steins;Gate | Steins;Gate
+Vinland Saga | Vinland Saga
+JoJo's Bizarre Adventure | JoJo's Bizarre Adventure
+Code Geass | Code Geass
+Dandadan | Dandadan
+Goku | Goku
+Vegeta | Vegeta
+Gohan | Gohan
+Piccolo | Piccolo
+Shenron | Shenron
+Pikachu | Pikachu
+Ash Ketchum | Ash Ketchum
+Team Rocket | Equipe Rocket
+Luffy | Luffy
+Zoro | Zoro
+Naruto Uzumaki | Naruto Uzumaki
+Sasuke | Sasuke
+Kakashi | Kakashi
+Light Yagami | Light Yagami
+L | L
+Eren Yeager | Eren Yeager
+Levi | Levi
+Tanjiro | Tanjiro
+Nezuko | Nezuko
+Gojo Satoru | Gojo Satoru
+Totoro | Totoro
+No-Face | Sem-Rosto
+Seiya | Seiya
+Kirito | Kirito
+Edward Elric | Edward Elric
+Gon | Gon
+Killua | Killua
+Ichigo | Ichigo
+Saitama | Saitama
+Anya Forger | Anya Forger
+Deku | Deku
+All Might | All Might
+Kamehameha | Kamehameha
+Super Saiyan | Super Saiyajin
+Dragon Balls | Esferas do Dragão
+Rasengan | Rasengan
+Poké Ball | Pokébola
+Straw hat | Chapéu de palha
+
+==================================================
+BIBLE | BÍBLIA  (107)
+==================================================
+Adam | Adão
+Eve | Eva
+Garden of Eden | Jardim do Éden
+Forbidden fruit | Fruto proibido
+Serpent | Serpente
+Cain and Abel | Caim e Abel
+Noah | Noé
+Noah's Ark | Arca de Noé
+The Great Flood | Dilúvio
+Tower of Babel | Torre de Babel
+Abraham | Abraão
+Sarah | Sara
+Isaac | Isaque
+Jacob | Jacó
+Jacob's Ladder | Escada de Jacó
+Joseph | José do Egito
+Coat of many colors | Túnica colorida de José
+Moses | Moisés
+Baby Moses in a basket | Moisés no cesto
+Burning bush | Sarça ardente
+Ten Plagues | Dez Pragas
+Parting of the Red Sea | Abertura do Mar Vermelho
+Ten Commandments | Dez Mandamentos
+Tablets of stone | Tábuas da Lei
+Manna | Maná
+Golden calf | Bezerro de ouro
+Ark of the Covenant | Arca da Aliança
+Joshua | Josué
+Walls of Jericho | Muralhas de Jericó
+Samson | Sansão
+Delilah | Dalila
+Ruth | Rute
+David | Davi
+Goliath | Golias
+David's sling | Funda de Davi
+Solomon | Salomão
+Queen of Sheba | Rainha de Sabá
+Elijah | Elias
+Jonah | Jonas
+Jonah and the whale | Jonas e a baleia
+Daniel | Daniel
+Lions' den | Cova dos leões
+Fiery furnace | Fornalha ardente
+Nebuchadnezzar | Nabucodonosor
+Esther | Ester
+Job | Jó
+Isaiah | Isaías
+Psalms | Salmos
+Proverbs | Provérbios
+Mary | Maria
+Jesus | Jesus
+Angel Gabriel | Anjo Gabriel
+Bethlehem | Belém
+Nazareth | Nazaré
+Manger | Manjedoura
+Three Wise Men | Três Reis Magos
+Star of Bethlehem | Estrela de Belém
+John the Baptist | João Batista
+Baptism | Batismo
+Jordan River | Rio Jordão
+Twelve Apostles | Doze Apóstolos
+Peter | Pedro
+Paul | Paulo
+Judas | Judas
+Thomas | Tomé
+Matthew | Mateus
+Mary Magdalene | Maria Madalena
+Lazarus | Lázaro
+Zacchaeus | Zaqueu
+Water into wine | Água em vinho
+Walking on water | Andar sobre as águas
+Feeding of the five thousand | Multiplicação dos pães e peixes
+Fishers of men | Pescadores de homens
+Good Samaritan | Bom Samaritano
+Prodigal Son | Filho Pródigo
+Lost sheep | Ovelha perdida
+Good Shepherd | Bom Pastor
+Mustard seed | Grão de mostarda
+Sermon on the Mount | Sermão da Montanha
+Last Supper | Santa Ceia
+Garden of Gethsemane | Jardim do Getsêmani
+Thirty pieces of silver | Trinta moedas de prata
+Kiss of Judas | Beijo de Judas
+Peter's denial | Negação de Pedro
+Pontius Pilate | Pôncio Pilatos
+Herod | Herodes
+Pharaoh | Faraó
+Crown of thorns | Coroa de espinhos
+Cross | Cruz
+Golgotha | Gólgota
+Resurrection | Ressurreição
+Empty tomb | Túmulo vazio
+Pentecost | Pentecostes
+Book of Revelation | Apocalipse
+Sodom and Gomorrah | Sodoma e Gomorra
+Lot's wife | Mulher de Ló
+Mount Sinai | Monte Sinai
+Saul | Saul
+Angel | Anjo
+Devil | Diabo
+Heaven | Céu
+Hell | Inferno
+Halo | Auréola
+Prayer | Oração
+Holy Spirit | Espírito Santo
+Dove with olive branch | Pomba com ramo de oliveira
+Shepherd's staff | Cajado
+
+==================================================
+BROADWAY | BROADWAY  (80)
+==================================================
+The Phantom of the Opera | O Fantasma da Ópera
+Les Misérables | Os Miseráveis
+The Lion King | O Rei Leão
+Wicked | Wicked
+Hamilton | Hamilton
+Chicago | Chicago
+Cats | Cats
+Mamma Mia! | Mamma Mia!
+Grease | Grease: Nos Tempos da Brilhantina
+The Sound of Music | A Noviça Rebelde
+Beauty and the Beast | A Bela e a Fera
+Aladdin | Aladdin
+Rent | Rent
+Hairspray | Hairspray
+West Side Story | Amor, Sublime Amor
+Cabaret | Cabaret
+The Book of Mormon | O Livro de Mórmon
+Dear Evan Hansen | Dear Evan Hansen
+Mean Girls | Meninas Malvadas
+Frozen | Frozen
+Matilda | Matilda
+Annie | Annie
+Evita | Evita
+Jesus Christ Superstar | Jesus Christ Superstar
+Fiddler on the Roof | Um Violinista no Telhado
+My Fair Lady | Minha Bela Dama
+A Chorus Line | A Chorus Line
+Sweeney Todd | Sweeney Todd
+Into the Woods | Caminhos da Floresta
+The Wizard of Oz | O Mágico de Oz
+Hadestown | Hadestown
+Six | Six
+Moulin Rouge! | Moulin Rouge!
+Kinky Boots | Kinky Boots
+Dreamgirls | Dreamgirls
+Miss Saigon | Miss Saigon
+Spring Awakening | O Despertar da Primavera
+Little Shop of Horrors | A Pequena Loja dos Horrores
+Rock of Ages | Rock of Ages
+School of Rock | Escola de Rock
+Shrek the Musical | Shrek, o Musical
+Mary Poppins | Mary Poppins
+The Little Mermaid | A Pequena Sereia
+Newsies | Newsies
+Hello, Dolly! | Hello, Dolly!
+Oklahoma! | Oklahoma!
+Anything Goes | Anything Goes
+Kiss Me, Kate | Kiss Me, Kate
+Guys and Dolls | Garotos e Garotas
+Beetlejuice | Beetlejuice
+Back to the Future | De Volta para o Futuro
+Charlie and the Chocolate Factory | A Fantástica Fábrica de Chocolate
+The Producers | Os Produtores
+Avenue Q | Avenue Q
+Pippin | Pippin
+Godspell | Godspell
+Hair | Hair
+Waitress | A Garçonete
+Come From Away | Come From Away
+Legally Blonde | Legalmente Loira
+Billy Elliot | Billy Elliot
+Jersey Boys | Jersey Boys
+Heathers | Heathers
+Funny Girl | Funny Girl
+Cinderella | Cinderela
+Tarzan | Tarzan
+Sunset Boulevard | Crepúsculo dos Deuses
+Mrs. Doubtfire | Uma Babá Quase Perfeita
+Harry Potter and the Cursed Child | Harry Potter e a Criança Amaldiçoada
+The Great Gatsby | O Grande Gatsby
+Phantom mask | Máscara do Fantasma
+Chandelier crash | Queda do lustre
+Jazz hands | Mãos de jazz
+Tap dancing | Sapateado
+Standing ovation | Aplausos de pé
+Curtain call | Agradecimento final
+Opening night | Noite de estreia
+Spotlight | Holofote
+Understudy | Substituto
+Playbill | Programa da peça
+
+==================================================
+SOCCER | FUTEBOL  (104)
+==================================================
+Goal | Gol
+Goalkeeper | Goleiro
+Defender | Zagueiro
+Midfielder | Meio-campista
+Striker | Atacante
+Referee | Árbitro
+Assistant referee | Bandeirinha
+Penalty kick | Pênalti
+Free kick | Cobrança de falta
+Corner kick | Escanteio
+Throw-in | Lateral
+Offside | Impedimento
+Yellow card | Cartão amarelo
+Red card | Cartão vermelho
+VAR | VAR
+Header | Cabeçada
+Bicycle kick | Bicicleta
+Hat-trick | Hat-trick
+Own goal | Gol contra
+Dribble | Drible
+Nutmeg | Caneta
+Lob over the head | Chapéu
+Olympic goal | Gol olímpico
+Penalty shootout | Disputa de pênaltis
+Extra time | Prorrogação
+Halftime | Intervalo
+Kickoff | Pontapé inicial
+Crossbar | Travessão
+Goalpost | Trave
+Net | Rede
+Stands | Arquibancada
+Fans | Torcida
+Mascot | Mascote
+Captain's armband | Braçadeira de capitão
+Substitution | Substituição
+Head coach | Técnico
+Substitutes' bench | Banco de reservas
+Locker room | Vestiário
+World Cup trophy | Taça da Copa do Mundo
+Ballon d'Or | Bola de Ouro
+Golden Boot | Chuteira de Ouro
+Goal celebration | Comemoração de gol
+Diving (faking a foul) | Simulação
+Defensive wall | Barreira
+Counterattack | Contra-ataque
+Stadium wave | Ola
+Vuvuzela | Vuvuzela
+Penalty spot | Marca do pênalti
+Champions League | Liga dos Campeões
+Copa Libertadores | Libertadores
+Brasileirão | Brasileirão
+Copa América | Copa América
+Derby | Clássico
+Relegation | Rebaixamento
+Flamengo | Flamengo
+Corinthians | Corinthians
+Palmeiras | Palmeiras
+São Paulo FC | São Paulo FC
+Santos | Santos
+Vasco da Gama | Vasco da Gama
+Fluminense | Fluminense
+Botafogo | Botafogo
+Grêmio | Grêmio
+Internacional | Internacional
+Cruzeiro | Cruzeiro
+Atlético Mineiro | Atlético Mineiro
+Bahia | Bahia
+Real Madrid | Real Madrid
+Barcelona | Barcelona
+Manchester United | Manchester United
+Manchester City | Manchester City
+Liverpool | Liverpool
+Chelsea | Chelsea
+Arsenal | Arsenal
+Bayern Munich | Bayern de Munique
+Juventus | Juventus
+AC Milan | Milan
+Inter Milan | Inter de Milão
+PSG | PSG
+Boca Juniors | Boca Juniors
+River Plate | River Plate
+Pelé | Pelé
+Garrincha | Garrincha
+Zico | Zico
+Romário | Romário
+Ronaldo "The Phenomenon" | Ronaldo Fenômeno
+Rivaldo | Rivaldo
+Kaká | Kaká
+Ronaldinho Gaúcho | Ronaldinho Gaúcho
+Neymar | Neymar
+Vinícius Júnior | Vinícius Júnior
+Marta | Marta
+Cafu | Cafu
+Taffarel | Taffarel
+Roberto Carlos (player) | Roberto Carlos (jogador)
+Diego Maradona | Diego Maradona
+Lionel Messi | Lionel Messi
+Cristiano Ronaldo | Cristiano Ronaldo
+Zinedine Zidane | Zinedine Zidane
+Kylian Mbappé | Kylian Mbappé
+Erling Haaland | Erling Haaland
+Johan Cruyff | Johan Cruyff
+David Beckham | David Beckham
+Lamine Yamal | Lamine Yamal
+</script>
+
+<script>
+    // =====================================================================
+    //  EDIT HERE: presets, icons and limits
+    // =====================================================================
+
+    // Categories use the English name from the word list. cats: null means all of them.
+    const PRESETS = {
+        all: { name: { pt: 'Tudo', en: 'Everything' }, cats: null },
+        everyday: {
+            name: { pt: 'Dia a dia', en: 'Everyday' },
+            cats: ['ACTIONS', 'ADJECTIVES', 'GENERAL', 'EVENTS', 'JOBS', 'PEOPLE', 'PLACES', 'ANIMALS', 'HUMAN BODY',
+                'CLOTHING', 'FOOD', 'OBJECTS', 'SPORTS', 'TOOLS', 'TRANSPORTATION']
+        },
+        pop: {
+            name: { pt: 'Cultura pop', en: 'Pop culture' },
+            cats: ['BRANDS', 'MOVIES (KIDS)', 'TV SERIES', 'FAMOUS PEOPLE', 'FICTIONAL CHARACTERS', 'ANIME', 'BROADWAY', 'SOCCER']
+        },
+        music: {
+            name: { pt: 'Música', en: 'Music' },
+            cats: ['MUSIC - ROCK', 'MUSIC - POP', 'MUSIC - MPB', 'MUSIC - SAMBA', 'MUSIC - FORRÓ']
+        },
+        knowledge: {
+            name: { pt: 'Conhecimento', en: 'Knowledge' },
+            cats: ['CITY, STATE, COUNTRY', 'LANDMARKS', 'SCIENCE', 'CONCEPTS', 'BIBLE']
+        }
+    };
+
+    const CATEGORY_ICONS = {
+        'CITY, STATE, COUNTRY': '🌎', 'ACTIONS': '🏃', 'ADJECTIVES': '✨', 'EVENTS': '🎉', 'GENERAL': '🧩',
+        'JOBS': '👷', 'PEOPLE': '🙋', 'PLACES': '🏘️', 'BRANDS': '🏷️', 'MOVIES (KIDS)': '🎬', 'TV SERIES': '📺',
+        'MUSIC - ROCK': '🎸', 'MUSIC - POP': '🎤', 'MUSIC - MPB': '🎷', 'MUSIC - SAMBA': '🥁', 'MUSIC - FORRÓ': '🌵',
+        'ANIMALS': '🦁', 'FAMOUS PEOPLE': '🌟', 'FICTIONAL CHARACTERS': '🦸', 'HUMAN BODY': '💪', 'LANDMARKS': '🗽',
+        'SCIENCE': '🔬', 'CLOTHING': '👕', 'CONCEPTS': '💭', 'FOOD': '🍔', 'OBJECTS': '📦', 'SPORTS': '🏅',
+        'TOOLS': '🔧', 'TRANSPORTATION': '🚗', 'ANIME': '🍥', 'BIBLE': '📖', 'BROADWAY': '🎭', 'SOCCER': '⚽'
+    };
+    const DEFAULT_ICON = '🎲';
+
+    const COUNT_MIN = 1, COUNT_MAX = 20, COUNT_DEFAULT = 5;
+    const TIMER_MIN = 5, TIMER_MAX = 600, TIMER_DEFAULT = 60, TIMER_STEP = 5;
+    const TIMER_WARNING = 10; // the timer turns red for the last seconds
+
+    // =====================================================================
+    //  Translations
+    // =====================================================================
+
+    const STRINGS = {
+        pt: {
+            doc_title: 'Mímica e Desenho',
+            brand: 'Mímica e Desenho',
+            title: 'Mímica e Desenho',
+            lead: 'Sorteie palavras para jogar mímica ou desenho.',
+            settings: 'Configurações',
+            word_lang: 'Idioma das palavras',
+            both: 'Ambos',
+            draw: 'Sortear',
+            per_draw_fmt: '{n} por sorteio',
+            hint: 'Aperte "Sortear" para tirar as palavras.',
+            no_cats: 'Nenhuma categoria selecionada. Escolha pelo menos uma nas configurações.',
+            categories: 'Categorias',
+            custom: 'Personalizado',
+            select_all: 'Marcar todas',
+            select_none: 'Limpar',
+            per_draw: 'Palavras por sorteio',
+            less: 'Menos', more: 'Mais',
+            timer: 'Temporizador',
+            timer_use: 'Usar temporizador',
+            timer_seconds: 'Segundos',
+            timer_fmt: '{n} s',
+            timer_stop: 'Parar',
+            time_up: 'Tempo esgotado!',
+            done: 'Pronto',
+            close: 'Fechar',
+            word_one: 'palavra', word_many: 'palavras',
+            cat_one: 'categoria', cat_many: 'categorias',
+            footer_gamenight: 'Noite de Jogos',
+            footer_home: 'Página inicial'
+        },
+        en: {
+            doc_title: 'Mime & Draw',
+            brand: 'Mime & Draw',
+            title: 'Mime & Draw',
+            lead: 'Draw random words for mime and drawing games.',
+            settings: 'Settings',
+            word_lang: 'Word language',
+            both: 'Both',
+            draw: 'Draw',
+            per_draw_fmt: '{n} per draw',
+            hint: 'Press "Draw" to get your words.',
+            no_cats: 'No categories selected. Pick at least one in the settings.',
+            categories: 'Categories',
+            custom: 'Custom',
+            select_all: 'Select all',
+            select_none: 'Clear',
+            per_draw: 'Words per draw',
+            less: 'Fewer', more: 'More',
+            timer: 'Timer',
+            timer_use: 'Use a timer',
+            timer_seconds: 'Seconds',
+            timer_fmt: '{n} s',
+            timer_stop: 'Stop',
+            time_up: 'Time\'s up!',
+            done: 'Done',
+            close: 'Close',
+            word_one: 'word', word_many: 'words',
+            cat_one: 'category', cat_many: 'categories',
+            footer_gamenight: 'Game Night',
+            footer_home: 'Home page'
+        }
+    };
+
+    // =====================================================================
+    //  Word list
+    // =====================================================================
+
+    // A line between two ==== lines is a category header, "EN | PT  (count)".
+    // Any other line with a | below a header is a word.
+    function parseWords(text) {
+        const lines = text.split(/\r?\n/).map(l => l.trim());
+        const cats = [];
+        lines.forEach((line, i) => {
+            if (!line.includes('|')) return;
+            const [en, pt] = line.split('|').map(s => s.trim());
+            const isHeader = i > 0 && lines[i - 1].startsWith('====') && (lines[i + 1] || '').startsWith('====');
+            if (isHeader) cats.push({ en, pt: pt.replace(/\s*\(\d+\)$/, ''), words: [] });
+            else if (cats.length) cats[cats.length - 1].words.push({ en, pt });
+        });
+        return cats;
+    }
+
+    const CATS = parseWords(document.getElementById('words').textContent);
+    const CARD_COLORS = ['var(--gold)', 'var(--red)', 'var(--teal)', 'var(--purple)', 'var(--blue)', 'var(--orange)'];
+    const catIcon = c => CATEGORY_ICONS[c.en] || DEFAULT_ICON;
+    const catColor = c => CARD_COLORS[CATS.indexOf(c) % CARD_COLORS.length];
+
+    // =====================================================================
+    //  Settings
+    // =====================================================================
+
+    function clampInt(value, min, max, fallback) {
+        const n = Math.round(Number(value));
+        return Number.isFinite(n) && value !== '' && value !== null ? Math.min(max, Math.max(min, n)) : fallback;
+    }
+    const clampCount = value => clampInt(value, COUNT_MIN, COUNT_MAX, COUNT_DEFAULT);
+    const clampTimer = value => clampInt(value, TIMER_MIN, TIMER_MAX, TIMER_DEFAULT);
+
+    function loadSettings() {
+        let s = null;
+        try { s = JSON.parse(localStorage.getItem('mimica-settings')); } catch (e) {}
+        s = s || {};
+        return {
+            preset: s.preset === 'custom' || Object.keys(PRESETS).includes(s.preset) ? s.preset : 'all',
+            cats: (Array.isArray(s.cats) ? s.cats : []).filter(name => CATS.some(c => c.en === name)),
+            count: clampCount(s.count === undefined ? null : s.count),
+            wordLang: ['en', 'pt', 'both'].includes(s.wordLang) ? s.wordLang : 'both',
+            timerOn: s.timerOn === true,
+            timerSeconds: clampTimer(s.timerSeconds === undefined ? null : s.timerSeconds)
+        };
+    }
+
+    const settings = loadSettings();
+
+    function saveSettings() {
+        try { localStorage.setItem('mimica-settings', JSON.stringify(settings)); } catch (e) {}
+    }
+
+    function activeCats() {
+        if (settings.preset === 'custom') return CATS.filter(c => settings.cats.includes(c.en));
+        const names = PRESETS[settings.preset].cats;
+        return names ? CATS.filter(c => names.includes(c.en)) : CATS;
+    }
+
+    // Some words are in more than one category, so the pool keeps one copy of each
+    function buildPool() {
+        const seen = new Set();
+        const pool = [];
+        activeCats().forEach(cat => cat.words.forEach(w => {
+            const key = w.en + '|' + w.pt;
+            if (seen.has(key)) return;
+            seen.add(key);
+            pool.push({ en: w.en, pt: w.pt, cat });
+        }));
+        return pool;
+    }
+
+    const presetName = () => settings.preset === 'custom' ? t('custom') : PRESETS[settings.preset].name[lang];
+    const plural = (n, one, many) => n.toLocaleString(lang === 'pt' ? 'pt-BR' : 'en-US') + ' ' + t(n === 1 ? one : many);
+
+    // =====================================================================
+    //  Rendering
+    // =====================================================================
+
+    let lang = 'pt';
+    let lastDraw = [];
+    const t = key => STRINGS[lang][key];
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    const settingsDialog = document.getElementById('settings');
+    const countInput = document.getElementById('count');
+    const timerInput = document.getElementById('timer-seconds');
+    const results = document.getElementById('results');
+
+    function cardHtml(w, i, deal) {
+        const both = settings.wordLang === 'both';
+        const catName = both ? [...new Set([w.cat.en, w.cat.pt])].join(' · ') : w.cat[settings.wordLang];
+        return '<div class="word-card panel' + (deal ? ' deal' : '') + '" style="--c: ' + catColor(w.cat) + '; --i: ' + i + '">' +
+            '<div class="word-cat"><span class="word-icon" aria-hidden="true">' + catIcon(w.cat) + '</span>' +
+                '<span class="word-cat-name">' + esc(catName) + '</span></div>' +
+            '<div class="word-main">' + esc(both ? w.en : w[settings.wordLang]) + '</div>' +
+            (both && w.pt !== w.en ? '<div class="word-alt">' + esc(w.pt) + '</div>' : '') +
+        '</div>';
+    }
+
+    function renderResults(deal) {
+        results.innerHTML = lastDraw.length
+            ? lastDraw.map((w, i) => cardHtml(w, i, deal)).join('')
+            : '<p class="hint">' + esc(t('hint')) + '</p>';
+    }
+
+    // Everything that depends on the current settings, without rebuilding the controls
+    function syncSettings() {
+        const pool = buildPool();
+        const cats = activeCats();
+        const custom = settings.preset === 'custom';
+
+        const status = document.getElementById('status');
+        status.classList.toggle('warn', !pool.length);
+        status.textContent = pool.length
+            ? presetName() + ' · ' + plural(pool.length, 'word_one', 'word_many') + ' · ' + t('per_draw_fmt').replace('{n}', settings.count) +
+                (settings.timerOn ? ' · ' + t('timer_fmt').replace('{n}', settings.timerSeconds) : '')
+            : t('no_cats');
+        document.getElementById('draw-btn').disabled = !pool.length;
+
+        document.querySelectorAll('#word-lang button').forEach(b => b.setAttribute('aria-pressed', b.dataset.wordLang === settings.wordLang));
+        document.querySelectorAll('#preset-chips .chip').forEach(b => b.setAttribute('aria-pressed', b.dataset.preset === settings.preset));
+        document.querySelectorAll('#cat-list input').forEach(box => { box.checked = settings.cats.includes(box.value); });
+
+        document.getElementById('summary').textContent = plural(cats.length, 'cat_one', 'cat_many') + ' · ' + plural(pool.length, 'word_one', 'word_many');
+        const presetCats = document.getElementById('preset-cats');
+        presetCats.hidden = custom;
+        presetCats.textContent = cats.map(c => catIcon(c) + ' ' + c[lang]).join('  ·  ');
+        document.getElementById('custom-box').hidden = !custom;
+
+        countInput.value = settings.count;
+        document.getElementById('count-down').disabled = settings.count <= COUNT_MIN;
+        document.getElementById('count-up').disabled = settings.count >= COUNT_MAX;
+
+        document.getElementById('timer-on').checked = settings.timerOn;
+        document.getElementById('timer-box').hidden = !settings.timerOn;
+        timerInput.value = settings.timerSeconds;
+        document.getElementById('timer-down').disabled = settings.timerSeconds <= TIMER_MIN;
+        document.getElementById('timer-up').disabled = settings.timerSeconds >= TIMER_MAX;
+    }
+
+    function changed() {
+        saveSettings();
+        syncSettings();
+    }
+
+    function renderSettings() {
+        document.getElementById('preset-chips').innerHTML =
+            Object.keys(PRESETS).map(id => '<button class="chip" type="button" data-preset="' + id + '">' + esc(PRESETS[id].name[lang]) + '</button>').join('') +
+            '<button class="chip" type="button" data-preset="custom">' + esc(t('custom')) + '</button>';
+        document.getElementById('cat-list').innerHTML = CATS.map(c =>
+            '<label class="cat-check"><input type="checkbox" value="' + esc(c.en) + '">' +
+                '<span class="emoji" aria-hidden="true">' + catIcon(c) + '</span>' +
+                '<span>' + esc(c[lang]) + '</span><span class="count">' + c.words.length + '</span></label>'
+        ).join('');
+    }
+
+    function setLang(next) {
+        lang = next;
+        try { localStorage.setItem('gamenight-lang', lang); } catch (e) {}
+        document.documentElement.lang = lang === 'pt' ? 'pt-BR' : 'en';
+        document.title = t('doc_title');
+        document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+        document.querySelectorAll('.lang-toggle button').forEach(b => b.setAttribute('aria-pressed', b.dataset.lang === lang));
+        document.querySelectorAll('.close-btn').forEach(b => b.setAttribute('aria-label', t('close')));
+        document.getElementById('settings-btn').setAttribute('aria-label', t('settings'));
+        document.getElementById('word-lang').setAttribute('aria-label', t('word_lang'));
+        document.getElementById('count-down').setAttribute('aria-label', t('less'));
+        document.getElementById('count-up').setAttribute('aria-label', t('more'));
+        document.getElementById('timer-down').setAttribute('aria-label', t('less'));
+        document.getElementById('timer-up').setAttribute('aria-label', t('more'));
+        renderSettings();
+        syncSettings();
+        renderResults(false);
+        renderTimer();
+    }
+
+    // =====================================================================
+    //  Sound effects (synthesized, so the page needs no audio files)
+    // =====================================================================
+
+    let audio = null;
+    let audioOut = null;
+
+    // Browsers only allow sound after a user action, so this runs on the Draw click
+    function readyAudio() {
+        const Context = window.AudioContext || window.webkitAudioContext;
+        if (!Context) return false;
+        if (!audio) {
+            audio = new Context();
+            audioOut = audio.createDynamicsCompressor();
+            audioOut.connect(audio.destination);
+        }
+        if (audio.state === 'suspended') audio.resume();
+        return true;
+    }
+
+    function tone(delay, duration, freq, type) {
+        const start = audio.currentTime + delay;
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(1, start);
+        gain.gain.setValueAtTime(1, start + duration - 0.03);
+        gain.gain.linearRampToValueAtTime(0, start + duration);
+        osc.connect(gain);
+        gain.connect(audioOut);
+        osc.start(start);
+        osc.stop(start + duration);
+    }
+
+    // A rising fanfare
+    function playDrawSound() {
+        if (!readyAudio()) return;
+        [523, 659, 784].forEach((freq, i) => tone(i * 0.11, 0.1, freq, 'square'));
+        tone(0.33, 0.4, 1047, 'square');
+        tone(0.33, 0.4, 784, 'sawtooth');
+    }
+
+    // Four harsh buzzer blasts
+    function playTimeUpSound() {
+        if (!readyAudio()) return;
+        for (let i = 0; i < 4; i++) {
+            tone(i * 0.48, 0.36, 180, 'sawtooth');
+            tone(i * 0.48, 0.36, 191, 'sawtooth');
+            tone(i * 0.48, 0.36, 382, 'square');
+        }
+    }
+
+    // =====================================================================
+    //  Timer
+    // =====================================================================
+
+    let timerTotal = 0; // ms; 0 means no timer on screen
+    let timerEnd = 0;
+    let timerId = null;
+    let timerDone = false;
+    let wakeLock = null;
+
+    // Keep the phone screen on, or it can sleep before the time is up
+    function keepScreenOn() {
+        if (wakeLock || !navigator.wakeLock) return;
+        navigator.wakeLock.request('screen').then(lock => {
+            wakeLock = lock;
+            if (timerId === null) releaseScreen();
+        }).catch(() => {});
+    }
+
+    function releaseScreen() {
+        if (wakeLock) wakeLock.release().catch(() => {});
+        wakeLock = null;
+    }
+
+    function renderTimer() {
+        const box = document.getElementById('timer');
+        box.hidden = !timerTotal;
+        if (!timerTotal) return;
+        const left = timerDone ? 0 : Math.max(0, timerEnd - Date.now());
+        const secs = Math.ceil(left / 1000);
+        box.classList.toggle('done', timerDone);
+        box.classList.toggle('warn', !timerDone && secs <= TIMER_WARNING);
+        document.getElementById('timer-time').textContent = timerDone ? t('time_up') : Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
+        document.getElementById('timer-fill').style.width = (left / timerTotal * 100) + '%';
+        document.getElementById('timer-stop').hidden = timerDone;
+    }
+
+    function tick() {
+        if (Date.now() >= timerEnd) {
+            clearInterval(timerId);
+            timerId = null;
+            timerDone = true;
+            releaseScreen();
+            playTimeUpSound();
+        }
+        renderTimer();
+    }
+
+    function startTimer() {
+        clearInterval(timerId);
+        timerDone = false;
+        timerTotal = settings.timerSeconds * 1000;
+        timerEnd = Date.now() + timerTotal;
+        timerId = setInterval(tick, 100);
+        keepScreenOn();
+        renderTimer();
+    }
+
+    function stopTimer() {
+        clearInterval(timerId);
+        timerId = null;
+        timerTotal = 0;
+        timerDone = false;
+        releaseScreen();
+        renderTimer();
+    }
+
+    // =====================================================================
+    //  Draw
+    // =====================================================================
+
+    function draw() {
+        const pool = buildPool();
+        const n = Math.min(settings.count, pool.length);
+        // Partial Fisher-Yates: only the first n positions need shuffling
+        for (let i = 0; i < n; i++) {
+            const j = i + Math.floor(Math.random() * (pool.length - i));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        lastDraw = pool.slice(0, n);
+        renderResults(true);
+        if (settings.timerOn) {
+            playDrawSound();
+            startTimer();
+        }
+    }
+
+    // =====================================================================
+    //  Events
+    // =====================================================================
+
+    document.querySelectorAll('.lang-toggle button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+    document.getElementById('draw-btn').addEventListener('click', draw);
+
+    document.getElementById('word-lang').addEventListener('click', e => {
+        const b = e.target.closest('button');
+        if (!b) return;
+        settings.wordLang = b.dataset.wordLang;
+        changed();
+        renderResults(false);
+    });
+
+    document.getElementById('settings-btn').addEventListener('click', () => {
+        settingsDialog.showModal();
+        settingsDialog.querySelector('.modal-inner').scrollTop = 0;
+    });
+    settingsDialog.addEventListener('click', e => {
+        if (e.target === settingsDialog || e.target.closest('[data-close]')) settingsDialog.close();
+    });
+
+    document.getElementById('preset-chips').addEventListener('click', e => {
+        const b = e.target.closest('.chip');
+        if (!b) return;
+        // Custom starts from whatever was selected before
+        if (b.dataset.preset === 'custom' && settings.preset !== 'custom') settings.cats = activeCats().map(c => c.en);
+        settings.preset = b.dataset.preset;
+        changed();
+    });
+
+    document.getElementById('cat-list').addEventListener('change', e => {
+        settings.cats = [...document.querySelectorAll('#cat-list input:checked')].map(box => box.value);
+        changed();
+    });
+    document.getElementById('select-all').addEventListener('click', () => {
+        settings.cats = CATS.map(c => c.en);
+        changed();
+    });
+    document.getElementById('select-none').addEventListener('click', () => {
+        settings.cats = [];
+        changed();
+    });
+
+    function setCount(value) {
+        settings.count = clampCount(value);
+        changed();
+    }
+    countInput.min = COUNT_MIN;
+    countInput.max = COUNT_MAX;
+    countInput.addEventListener('change', () => setCount(countInput.value));
+    document.getElementById('count-down').addEventListener('click', () => setCount(settings.count - 1));
+    document.getElementById('count-up').addEventListener('click', () => setCount(settings.count + 1));
+
+    function setTimerSeconds(value) {
+        settings.timerSeconds = clampTimer(value);
+        changed();
+    }
+    timerInput.min = TIMER_MIN;
+    timerInput.max = TIMER_MAX;
+    timerInput.addEventListener('change', () => setTimerSeconds(timerInput.value));
+    document.getElementById('timer-down').addEventListener('click', () => setTimerSeconds(settings.timerSeconds - TIMER_STEP));
+    document.getElementById('timer-up').addEventListener('click', () => setTimerSeconds(settings.timerSeconds + TIMER_STEP));
+    document.getElementById('timer-on').addEventListener('change', e => {
+        settings.timerOn = e.target.checked;
+        if (!settings.timerOn) stopTimer();
+        changed();
+    });
+    document.getElementById('timer-stop').addEventListener('click', stopTimer);
+
+    // =====================================================================
+    //  Start
+    // =====================================================================
+
+    let saved = null;
+    try { saved = localStorage.getItem('gamenight-lang'); } catch (e) {}
+    setLang(saved === 'pt' || saved === 'en' ? saved : ((navigator.language || '').toLowerCase().startsWith('pt') ? 'pt' : 'en'));
+</script>
+
+</body>
+</html>

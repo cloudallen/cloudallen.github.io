@@ -17,6 +17,8 @@ Personal GitHub Pages site (served at https://cloudallen.github.io) for David Jo
 | `slidingpuzzle.html` | Rush Hour–style 6x6 sliding car puzzle (DOM-based, pointer events). It has 30 puzzles from Michael Fogleman's database in 5 difficulty tiers, plus the original "The Classic" level as a 6th tab. It also has undo, hints, an auto-solver and a box for pasting any database board string. |
 | `PegSolitaire-Solutions.html` | Large (~330 KB) Jupyter notebook exported with nbconvert (`RestaUm`). Lists precomputed solution / anti-solution move sequences as ASCII boards. Generated output: don't hand-edit it, regenerate it from the notebook (the notebook isn't in this repo). |
 | `gamenight.html` | Bilingual (PT/EN) promo page for the weekly IMPA game night (Thursdays 18:30–21:00): info cards, game catalog with rules summaries. |
+| `mimica.html` | Bilingual (PT/EN) word generator for mime and drawing games: draws random words from chosen categories in English, Portuguese or both. |
+| `mimic_words_EN_PT.txt` | Source word list for `mimica.html` (33 categories, 3,363 `English \| Português` lines). The page doesn't read this file at runtime. |
 | `README.md` | Short description with links to each page. |
 
 ## Game internals
@@ -41,6 +43,14 @@ Personal GitHub Pages site (served at https://cloudallen.github.io) for David Jo
 - Card pictures (`gamePicture`): `image` (a photo path) if set, otherwise the inline SVG symbol `art-<id>` from the sprite at the top of `<body>`, otherwise the name's first letter. New games need a new `art-<id>` symbol (64x64 viewBox, `currentColor` fill, `#07170f` details) or they fall back to the letter.
 - Only `id` and `name` are required. `players: [min]` (no max) displays as "min+". If set, `category` must be a key of `STRINGS[lang].cat` and of `CAT_COLORS`.
 - i18n: static text uses `data-i18n` keys from `STRINGS`. `setLang` re-renders everything and stores the choice in `localStorage` (`gamenight-lang`). The default comes from `navigator.language`.
+
+### Mime & Draw (`mimica.html`)
+- The word list is an exact copy of `mimic_words_EN_PT.txt`, embedded in `<script type="text/plain" id="words">` so the page also works from `file://`. If the txt file changes, paste it into that block. `parseWords` reads it at startup: a line between two `====` lines is a category header, any other line with `|` is a word.
+- Editable content is at the top of the main `<script>`: `PRESETS` (category lists use the English names from the word list), `CATEGORY_ICONS` (keyed the same way; a new category falls back to `DEFAULT_ICON`) and the `COUNT_*` limits for words per draw.
+- `buildPool` drops pairs that appear in more than one category (3,363 lines give 3,316 distinct words), so one draw never repeats a word. Words can repeat between draws.
+- Timer: when `settings.timerOn` is set, `draw` calls `playDrawSound` and `startTimer`. A sticky panel counts down from `settings.timerSeconds`, turns red for the last `TIMER_WARNING` seconds, and `tick` plays `playTimeUpSound` at zero. Drawing again restarts it, and the Stop button cancels it without the alarm. Sounds are synthesized with Web Audio (`tone`), so there are no audio files; the `AudioContext` has to be created on the Draw click because browsers block sound until a user action. A Screen Wake Lock keeps phones awake during a run.
+- Settings (preset, custom categories, count, word language, timer) are stored in `localStorage` (`mimica-settings`) and validated in `loadSettings`. The interface language shares the `gamenight-lang` key with `gamenight.html`.
+- `syncSettings` updates everything that depends on settings without rebuilding controls, so checkboxes keep focus. `renderSettings` rebuilds the chips and checklist, and only runs on a language change.
 
 ## Conventions
 
