@@ -3952,6 +3952,12 @@ Lamine Yamal | Lamine Yamal
 
     // Categories use the English name from the word list. cats: null means all of them.
     const PRESETS = {
+        classic: {
+            name: { pt: 'Clássico', en: 'Classic' },
+            cats: ['CITY, STATE, COUNTRY', 'ACTIONS', 'ADJECTIVES', 'EVENTS', 'GENERAL', 'JOBS', 'PEOPLE', 'PLACES', 'BRANDS',
+                'MOVIES (KIDS)', 'TV SERIES', 'ANIMALS', 'FAMOUS PEOPLE', 'FICTIONAL CHARACTERS', 'HUMAN BODY', 'LANDMARKS',
+                'SCIENCE', 'CLOTHING', 'CONCEPTS', 'FOOD', 'OBJECTS', 'SPORTS', 'TOOLS', 'TRANSPORTATION']
+        },
         all: { name: { pt: 'Tudo', en: 'Everything' }, cats: null },
         everyday: {
             name: { pt: 'Dia a dia', en: 'Everyday' },
@@ -4095,11 +4101,11 @@ Lamine Yamal | Lamine Yamal
         try { s = JSON.parse(localStorage.getItem('mimica-settings')); } catch (e) {}
         s = s || {};
         return {
-            preset: s.preset === 'custom' || Object.keys(PRESETS).includes(s.preset) ? s.preset : 'all',
+            preset: s.preset === 'custom' || Object.keys(PRESETS).includes(s.preset) ? s.preset : 'classic',
             cats: (Array.isArray(s.cats) ? s.cats : []).filter(name => CATS.some(c => c.en === name)),
             count: clampCount(s.count === undefined ? null : s.count),
             wordLang: ['en', 'pt', 'both'].includes(s.wordLang) ? s.wordLang : 'both',
-            timerOn: s.timerOn === true,
+            timerOn: s.timerOn !== false,
             timerSeconds: clampTimer(s.timerSeconds === undefined ? null : s.timerSeconds)
         };
     }
