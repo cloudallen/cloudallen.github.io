@@ -546,7 +546,7 @@
     // Games without rules show "Rules coming soon".
     const GAMES = [
         {
-            id: 'saboteur', name: 'Saboteur', players: [3, 10], minutes: 30, complexity: 1, category: 'bluffing',
+            id: 'saboteur', name: 'Saboteur', players: [3, 10], minutes: 30,  category: 'bluffing',
             desc: {
                 pt: 'Anões cavam túneis em busca de ouro, mas alguns deles são sabotadores disfarçados.',
                 en: 'Dwarves dig tunnels looking for gold, but some of them are secret saboteurs.'
@@ -567,7 +567,7 @@
             }
         },
         {
-            id: 'uno', name: 'Uno', players: [2, 10], minutes: 20, complexity: 1, category: 'cards',
+            id: 'uno', name: 'Uno', players: [2, 10], minutes: 20,  category: 'cards',
             desc: {
                 pt: 'O clássico: combine cor ou número e não esqueça de gritar UNO!',
                 en: 'The classic: match color or number and don\'t forget to shout UNO!'
@@ -588,7 +588,7 @@
             }
         },
         {
-            id: 'terra-a-vista', name: 'Terra à Vista', players: [2, 4], minutes: 20, complexity: 2, category: 'strategy',
+            id: 'terra-a-vista', name: 'Terra à Vista', players: [2, 4], minutes: 20,  category: 'strategy',
             desc: {
                 pt: 'Piratas em busca do tesouro: empurre e gire as peças do mapa até ele bater com a sua carta.',
                 en: 'Pirates hunting for treasure: push and turn the map tiles until they match your card.'
@@ -610,28 +610,28 @@
             link: 'https://ludopedia.com.br/jogo/terra-a-vista'
         },
         {
-            id: 'imagem-e-acao', name: 'Imagem & Ação', players: [4], minutes: 45, complexity: 1, category: 'party',
+            id: 'imagem-e-acao', name: 'Imagem & Ação', players: [4], minutes: 45,  category: 'party',
             desc: {
-                pt: 'O clássico brasileiro de desenhar e adivinhar, em equipes e contra a ampulheta.',
-                en: 'The Brazilian classic of drawing and guessing (think Pictionary), in teams and against the hourglass.'
+                pt: 'O clássico brasileiro de desenhar, fazer mímicas, e adivinhar, em equipes e contra o tempo.',
+                en: 'The Brazilian classic of drawing and guessing (think Pictionary), in teams and against time.'
             },
             rules: {
                 pt: {
-                    objective: 'Ser a primeira equipe a chegar ao fim do tabuleiro.',
-                    setup: 'Formem 2 ou 4 equipes (mínimo de 4 jogadores) e coloquem os peões na saída. Cada equipe rola o dado; quem tirar o maior número começa.',
-                    turn: 'A equipe escolhe quem vai desenhar. Essa pessoa pega uma carta e desenha a palavra da categoria da casa onde está o peão: O (objeto), P (pessoa, lugar ou animal), A (ação), D (difícil) ou L (lazer). Vire a ampulheta: a equipe precisa adivinhar antes de a areia acabar. Não vale escrever letras ou números, nem fazer mímica. Se acertar, a equipe rola o dado, avança e joga de novo; se errar, a vez passa para a próxima equipe. Nas casas T (todos jogam), todo mundo pode adivinhar o desenho.',
-                    end: 'A equipe que cruzar a linha de chegada primeiro vence.'
+                    objective: 'Ser a equipe que pontuou mais pontos.',
+                    setup: 'Formem 2 ou 4 equipes (mínimo de 4 jogadores) e ordene os jogadores de cada equipe.',
+                    turn: 'O próximo jogador da equipe pega uma carta e começa a desenhar/fazer mímicas para que a sua equipe acerte as palavras de sua carta, o jogador ganha uma quantidade de pontos igual a quantidade de palavras corretas.',
+                    end: 'Depois de todo mundo ter jogado, a equipe com mais pontos vence.'
                 },
                 en: {
                     objective: 'Be the first team to reach the end of the board.',
-                    setup: 'Form 2 or 4 teams (at least 4 players) and put the pawns on the start. Each team rolls the die; the highest roll goes first.',
-                    turn: 'The team picks someone to draw. That person takes a card and draws the word for the category of the square their pawn is on: O (object), P (person, place or animal), A (action), D (difficult) or L (leisure). Flip the hourglass: the team must guess before the sand runs out. No letters, numbers or miming allowed. If they guess it, the team rolls the die, moves and goes again; if not, the turn passes to the next team. On T squares (all play), everyone can guess the drawing.',
-                    end: 'The first team to cross the finish line wins.'
+                    setup: 'Form 2 or 4 teams (at least 4 players) and order the players on each team.',
+                    turn: 'The next player on the team picks a card and starts drawing/acting for their team to guess the words on the card. The player earns points equal to the number of words they guess correctly.',
+                    end: 'After everyone has played, the team with the most points wins.'
                 }
             }
         },
         {
-            id: 'werewolf', name: 'Werewolf', players: [6, 18], minutes: 30, complexity: 1, category: 'bluffing',
+            id: 'werewolf', name: 'Werewolf', players: [6, 18], minutes: 30,  category: 'bluffing',
             desc: {
                 pt: 'Uma vila, lobisomens escondidos entre os moradores e muitas acusações.',
                 en: 'A village, werewolves hiding among the villagers, and plenty of accusations.'
@@ -652,7 +652,7 @@
             }
         },
         {
-            id: 'spyfall', name: 'Spyfall', players: [3, 8], minutes: 15, complexity: 1, category: 'bluffing',
+            id: 'spyfall', name: 'Spyfall', players: [3, 8], minutes: 15,  category: 'bluffing',
             desc: {
                 pt: 'Todos sabem onde estão, menos o espião. Faça perguntas e desconfie das respostas.',
                 en: 'Everyone knows where they are, except the spy. Ask questions and doubt the answers.'
@@ -673,7 +673,7 @@
             }
         },
         {
-            id: 'avalon', name: 'Avalon', category: 'custom',
+            id: 'avalon', name: 'Avalon', players: [5, 10], category: 'custom',
             desc: {
                 pt: 'Uma versão em cartas de "The Resistance".',
                 en: 'A card-game version of "The Resistance".'
@@ -701,7 +701,7 @@
             }
         },
         {
-            id: 'owls-ass', name: "Owl's Ass", players: [4, 10], minutes: 10, category: 'custom',
+            id: 'coruja', name: "Cu da coruja", players: [4, 10], minutes: 10, category: 'custom',
             desc: {
                 pt: 'Troque, descarte e memorize: termine com o menor número de pontos nas suas cartas viradas para baixo.',
                 en: 'Swap, discard and remember: end with the fewest points in your face-down cards.'
